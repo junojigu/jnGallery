@@ -275,18 +275,17 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
           {/* Toggle Description Panel Button */}
           <button
             onClick={() => setShowPanel(!showPanel)}
-            title={showPanel ? '설명 패널 닫기' : '설명 패널 열기'}
-            aria-label="Toggle Description Panel"
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer border ${
+            title="사진 설명"
+            aria-label="사진 설명"
+            className={`w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center transition-all cursor-pointer border ${
               showPanel
                 ? 'bg-[#000000] text-white border-[#000000] shadow-xs'
-                : 'bg-white text-[#1a1c1c] border-[#c4c7c7] hover:border-[#000000]'
+                : 'bg-white text-[#747878] border-[#c4c7c7]/60 hover:border-[#000000] hover:text-[#000000]'
             }`}
           >
-            <span className="material-symbols-outlined text-[18px]">
+            <span className="material-symbols-outlined text-[20px]">
               {showPanel ? 'dock_right' : 'info'}
             </span>
-            <span className="hidden sm:inline">설명 패널</span>
           </button>
 
           {/* Slideshow Play / Pause Button in Header */}
@@ -365,11 +364,11 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
             {!showPanel && (
               <button
                 onClick={() => setShowPanel(true)}
-                title="설명 패널 보기"
-                className="absolute top-3 right-3 md:top-4 md:right-4 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/90 hover:bg-white text-[#1a1c1c] backdrop-blur-md shadow-md border border-[#c4c7c7]/50 text-xs font-semibold cursor-pointer transition-all hover:scale-105"
+                title="사진 설명"
+                aria-label="사진 설명"
+                className="absolute top-3 right-3 md:top-4 md:right-4 z-20 w-9 h-9 md:w-10 md:h-10 rounded-full bg-white/70 hover:bg-white text-[#747878] hover:text-[#000000] backdrop-blur-md shadow-sm border border-[#c4c7c7]/40 flex items-center justify-center cursor-pointer transition-all hover:scale-105"
               >
-                <span className="material-symbols-outlined text-[18px]">info</span>
-                <span>설명 패널</span>
+                <span className="material-symbols-outlined text-[20px]">info</span>
               </button>
             )}
 
@@ -404,8 +403,8 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
           {/* Thumbnail Carousel (Hover at bottom area to reveal) */}
           <div className="w-full flex-shrink-0 pt-1 pb-1 group/bottomBar flex flex-col items-center justify-end relative z-30">
             {/* Hover indicator pill */}
-            <div className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-white/90 backdrop-blur-md border border-[#c4c7c7]/40 text-xs font-semibold text-[#1a1c1c] shadow-md group-hover/bottomBar:opacity-0 transition-all duration-300 cursor-pointer pointer-events-auto">
-              <span className="material-symbols-outlined text-sm">photo_library</span>
+            <div className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-white/80 hover:bg-white backdrop-blur-md border border-[#c4c7c7]/40 text-xs font-medium text-[#747878] hover:text-[#1a1c1c] shadow-xs group-hover/bottomBar:opacity-0 transition-all duration-300 cursor-pointer pointer-events-auto">
+              <span className="material-symbols-outlined text-sm text-[#8a8e8e]">photo_library</span>
               <span>사진 목록</span>
             </div>
 
@@ -718,12 +717,12 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
           </div>
 
           {/* Bottom Caption & Mini Filmstrip */}
-          <footer className="relative z-40 w-full flex flex-col items-center gap-3 px-6 pb-6 pt-2 pointer-events-none">
+          <footer className="relative z-40 w-full flex flex-col items-center gap-2 px-6 pb-4 pt-4 pointer-events-none group/fullscreenBottom">
             {/* Title-Only Minimal Borderless Caption (Always visible when enabled) */}
             {showInfoOverlay && (
               <div
                 key={photo.id}
-                className="px-6 py-1.5 text-white flex items-center justify-center animate-smooth-fade max-w-3xl pointer-events-auto"
+                className="px-6 py-1 text-white flex items-center justify-center animate-smooth-fade max-w-3xl pointer-events-auto"
               >
                 <h2 className="font-serif text-base md:text-xl font-normal text-white/95 tracking-wide text-center drop-shadow-[0_2px_12px_rgba(0,0,0,0.95)] truncate">
                   {photo.title}
@@ -731,31 +730,31 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
               </div>
             )}
 
-            {/* Mini Filmstrip Thumbnails Bar (Glassmorphism, Auto-hides with controls) */}
-            <div
-              className={`max-w-xl w-full flex items-center justify-center gap-2 overflow-x-auto p-2 bg-black/40 border border-white/15 rounded-2xl backdrop-blur-xl scrollbar-hide shadow-2xl transition-opacity duration-500 pointer-events-auto ${
-                isControlsVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
-              }`}
-            >
-              {effectivePhotos.map((item) => {
-                const isCurrent = item.id === photo.id;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onSelectPhoto(item);
-                    }}
-                    className={`flex-shrink-0 w-12 h-12 rounded-xl overflow-hidden border-2 transition-all cursor-pointer ${
-                      isCurrent
-                        ? 'border-white scale-105 shadow-[0_0_12px_rgba(255,255,255,0.4)] opacity-100'
-                        : 'border-transparent opacity-40 hover:opacity-100 hover:border-white/40'
-                    }`}
-                  >
-                    <img src={item.url} alt={item.title} className="w-full h-full object-cover" />
-                  </button>
-                );
-              })}
+            {/* Mini Filmstrip Thumbnails Bar (Reveals ONLY when hovering at bottom area) */}
+            <div className="w-full flex justify-center pointer-events-auto pt-2 pb-1">
+              <div
+                className="max-w-xl w-full flex items-center justify-center gap-2 overflow-x-auto p-2 bg-black/60 border border-white/15 rounded-2xl backdrop-blur-2xl scrollbar-hide shadow-2xl opacity-0 translate-y-6 pointer-events-none group-hover/fullscreenBottom:opacity-100 group-hover/fullscreenBottom:translate-y-0 group-hover/fullscreenBottom:pointer-events-auto transition-all duration-300 ease-out"
+              >
+                {effectivePhotos.map((item) => {
+                  const isCurrent = item.id === photo.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSelectPhoto(item);
+                      }}
+                      className={`flex-shrink-0 w-12 h-12 rounded-xl overflow-hidden border-2 transition-all cursor-pointer ${
+                        isCurrent
+                          ? 'border-white scale-105 shadow-[0_0_12px_rgba(255,255,255,0.4)] opacity-100'
+                          : 'border-transparent opacity-40 hover:opacity-100 hover:border-white/40'
+                      }`}
+                    >
+                      <img src={item.url} alt={item.title} className="w-full h-full object-cover" />
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </footer>
         </div>
