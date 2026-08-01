@@ -272,23 +272,7 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
         </div>
 
         <div className="flex items-center gap-2.5">
-          {/* Toggle Description Panel Button */}
-          <button
-            onClick={() => setShowPanel(!showPanel)}
-            title="사진 설명"
-            aria-label="사진 설명"
-            className={`w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center transition-all cursor-pointer border ${
-              showPanel
-                ? 'bg-[#000000] text-white border-[#000000] shadow-xs'
-                : 'bg-white text-[#747878] border-[#c4c7c7]/60 hover:border-[#000000] hover:text-[#000000]'
-            }`}
-          >
-            <span className="material-symbols-outlined text-[20px]">
-              {showPanel ? 'dock_right' : 'info'}
-            </span>
-          </button>
-
-          {/* Slideshow Play / Pause Button in Header */}
+          {/* 1. Slideshow Play / Pause Button in Header */}
           <button
             onClick={() => setIsPlaying(!isPlaying)}
             title={isPlaying ? '슬라이드쇼 일시정지' : '슬라이드쇼 자동재생'}
@@ -321,7 +305,23 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
             </div>
           )}
 
-          {/* Fullscreen Button */}
+          {/* 2. Toggle Description Panel Button */}
+          <button
+            onClick={() => setShowPanel(!showPanel)}
+            title="사진 설명"
+            aria-label="사진 설명"
+            className={`w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center transition-all cursor-pointer border ${
+              showPanel
+                ? 'bg-[#000000] text-white border-[#000000] shadow-xs'
+                : 'bg-white text-[#747878] border-[#c4c7c7]/60 hover:border-[#000000] hover:text-[#000000]'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[20px]">
+              {showPanel ? 'dock_right' : 'info'}
+            </span>
+          </button>
+
+          {/* 3. Fullscreen Button */}
           <button
             onClick={handleEnterFullscreen}
             title="전체 화면으로 감상하기 (F / F11)"
@@ -331,6 +331,7 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
             <span className="material-symbols-outlined text-[20px]">fullscreen</span>
           </button>
 
+          {/* 4. Edit photo */}
           <button
             onClick={handleEditClick}
             aria-label="Edit photo"
@@ -339,6 +340,8 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
           >
             <span className="material-symbols-outlined text-[20px]">edit</span>
           </button>
+
+          {/* 5. Delete photo */}
           <button
             onClick={handleDeleteClick}
             aria-label="Delete photo"
@@ -360,18 +363,6 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
             onTouchEnd={handleTouchEnd}
             className="relative group w-full flex-1 min-h-0 flex items-center justify-center p-2 select-none"
           >
-            {/* Top-Right Floating Panel Toggle when closed */}
-            {!showPanel && (
-              <button
-                onClick={() => setShowPanel(true)}
-                title="사진 설명"
-                aria-label="사진 설명"
-                className="absolute top-3 right-3 md:top-4 md:right-4 z-20 w-9 h-9 md:w-10 md:h-10 rounded-full bg-white/70 hover:bg-white text-[#747878] hover:text-[#000000] backdrop-blur-md shadow-sm border border-[#c4c7c7]/40 flex items-center justify-center cursor-pointer transition-all hover:scale-105"
-              >
-                <span className="material-symbols-outlined text-[20px]">info</span>
-              </button>
-            )}
-
             {/* Left Navigation Arrow */}
             <button
               onClick={handlePrev}
@@ -400,16 +391,10 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
             />
           </div>
 
-          {/* Thumbnail Carousel (Hover at bottom area to reveal) */}
-          <div className="w-full flex-shrink-0 pt-1 pb-1 group/bottomBar flex flex-col items-center justify-end relative z-30">
-            {/* Hover indicator pill */}
-            <div className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-white/80 hover:bg-white backdrop-blur-md border border-[#c4c7c7]/40 text-xs font-medium text-[#747878] hover:text-[#1a1c1c] shadow-xs group-hover/bottomBar:opacity-0 transition-all duration-300 cursor-pointer pointer-events-auto">
-              <span className="material-symbols-outlined text-sm text-[#8a8e8e]">photo_library</span>
-              <span>사진 목록</span>
-            </div>
-
+          {/* Thumbnail Carousel Trigger Area (Appears on hover at bottom area) */}
+          <div className="w-full flex-shrink-0 group/bottomBar flex flex-col items-center justify-end relative z-30 h-16 md:h-20 -mt-10 pt-2">
             {/* Slide-up Carousel */}
-            <div className="absolute bottom-1 w-full max-w-3xl flex justify-center gap-2.5 overflow-x-auto p-2.5 rounded-2xl bg-white/85 backdrop-blur-xl border border-[#c4c7c7]/40 shadow-2xl opacity-0 translate-y-4 pointer-events-none group-hover/bottomBar:opacity-100 group-hover/bottomBar:translate-y-0 group-hover/bottomBar:pointer-events-auto transition-all duration-300 scrollbar-hide">
+            <div className="absolute bottom-2 w-full max-w-3xl flex justify-center gap-2.5 overflow-x-auto p-2.5 rounded-2xl bg-white/85 backdrop-blur-xl border border-[#c4c7c7]/40 shadow-2xl opacity-0 translate-y-4 pointer-events-none group-hover/bottomBar:opacity-100 group-hover/bottomBar:translate-y-0 group-hover/bottomBar:pointer-events-auto transition-all duration-300 scrollbar-hide">
               {effectivePhotos.map((item) => {
                 const isCurrent = item.id === photo.id;
                 return (
