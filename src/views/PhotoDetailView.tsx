@@ -165,6 +165,26 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
     };
   }, [currentIndex, effectivePhotos, isFullscreen]);
 
+  const touchStartXRef = React.useRef<number | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartXRef.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartXRef.current === null) return;
+    const touchEndX = e.changedTouches[0].clientX;
+    const diffX = touchStartXRef.current - touchEndX;
+    if (Math.abs(diffX) > 40) {
+      if (diffX > 0) {
+        handleNext();
+      } else {
+        handlePrev();
+      }
+    }
+    touchStartXRef.current = null;
+  };
+
   const handleDownload = () => {
     const a = document.createElement('a');
     a.href = photo.url;
@@ -265,13 +285,17 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
         {/* Photo Viewer Container */}
         <div className="flex-1 min-h-0 min-w-0 h-full relative flex flex-col items-center justify-between transition-all">
           {/* Main Image Container */}
-          <div className="relative group w-full flex-1 min-h-0 flex items-center justify-center p-2">
+          <div
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+            className="relative group w-full flex-1 min-h-0 flex items-center justify-center p-2 select-none"
+          >
             {/* Left Navigation Arrow */}
             <button
               onClick={handlePrev}
               aria-label="Previous photo"
               title="이전 사진"
-              className="absolute left-4 md:left-8 top-1/2 -translate-y-1/2 w-11 h-11 md:w-12 md:h-12 rounded-full bg-white/80 hover:bg-white text-[#1a1c1c] backdrop-blur-md shadow-xl flex items-center justify-center hover:scale-110 active:scale-95 opacity-0 group-hover:opacity-100 transition-all duration-300 z-20 cursor-pointer border border-[#c4c7c7]/40"
+              className="absolute left-2 md:left-8 top-1/2 -translate-y-1/2 w-11 h-11 md:w-12 md:h-12 rounded-full bg-white/90 hover:bg-white text-[#1a1c1c] backdrop-blur-md shadow-xl flex items-center justify-center hover:scale-110 active:scale-95 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-all duration-300 z-20 cursor-pointer border border-[#c4c7c7]/40"
             >
               <span className="material-symbols-outlined text-[24px]">chevron_left</span>
             </button>
@@ -281,7 +305,7 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
               onClick={handleNext}
               aria-label="Next photo"
               title="다음 사진"
-              className="absolute right-14 md:right-16 top-1/2 -translate-y-1/2 w-11 h-11 md:w-12 md:h-12 rounded-full bg-white/80 hover:bg-white text-[#1a1c1c] backdrop-blur-md shadow-xl flex items-center justify-center hover:scale-110 active:scale-95 opacity-0 group-hover:opacity-100 transition-all duration-300 z-20 cursor-pointer border border-[#c4c7c7]/40"
+              className="absolute right-2 md:right-8 top-1/2 -translate-y-1/2 w-11 h-11 md:w-12 md:h-12 rounded-full bg-white/90 hover:bg-white text-[#1a1c1c] backdrop-blur-md shadow-xl flex items-center justify-center hover:scale-110 active:scale-95 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-all duration-300 z-20 cursor-pointer border border-[#c4c7c7]/40"
             >
               <span className="material-symbols-outlined text-[24px]">chevron_right</span>
             </button>
@@ -290,7 +314,7 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
               key={photo.id}
               src={photo.url}
               alt={photo.title}
-              className="max-w-full max-h-full object-contain rounded-xl ambient-shadow shadow-2xl animate-smooth-fade"
+              className="max-w-full max-h-full object-contain rounded-xl ambient-shadow shadow-2xl animate-smooth-fade pointer-events-none"
             />
 
             {/* Fullscreen Overlay Toggle Button */}
@@ -298,7 +322,7 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
               onClick={() => setIsFullscreen(true)}
               aria-label="Toggle Fullscreen"
               title="전체 화면으로 감상하기"
-              className="absolute bottom-4 right-4 w-10 h-10 rounded-full bg-white/80 backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[#1a1c1c] hover:text-[#000000] shadow-sm cursor-pointer"
+              className="absolute bottom-4 right-4 w-10 h-10 rounded-full bg-white/90 backdrop-blur-md opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity flex items-center justify-center text-[#1a1c1c] hover:text-[#000000] shadow-sm cursor-pointer z-20"
             >
               <span className="material-symbols-outlined text-[20px]">fullscreen</span>
             </button>
@@ -565,17 +589,21 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
           </header>
 
           {/* Center Main Stage (Image Area) */}
-          <div className="relative flex-1 w-full flex items-center justify-center z-10 p-2 md:p-6 overflow-hidden">
+          <div
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+            className="relative flex-1 w-full flex items-center justify-center z-10 p-2 md:p-6 overflow-hidden select-none"
+          >
             {/* Nav Prev Button */}
             <button
               onClick={handlePrev}
               aria-label="Previous photo"
               title="이전 사진 (Left Arrow)"
-              className={`absolute left-4 md:left-8 top-1/2 -translate-y-1/2 w-12 h-12 md:w-14 md:h-14 rounded-full bg-black/40 hover:bg-black/70 text-white/90 hover:text-white backdrop-blur-xl border border-white/15 flex items-center justify-center transition-all duration-300 cursor-pointer z-30 hover:scale-110 active:scale-95 shadow-2xl ${
-                isControlsVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
+              className={`absolute left-2 md:left-8 top-1/2 -translate-y-1/2 w-11 h-11 md:w-14 md:h-14 rounded-full bg-black/50 hover:bg-black/80 text-white backdrop-blur-xl border border-white/20 flex items-center justify-center transition-all duration-300 cursor-pointer z-30 hover:scale-110 active:scale-95 shadow-2xl ${
+                isControlsVisible ? 'opacity-100' : 'opacity-80 lg:opacity-0 pointer-events-auto'
               }`}
             >
-              <span className="material-symbols-outlined text-[32px]">chevron_left</span>
+              <span className="material-symbols-outlined text-[28px] md:text-[32px]">chevron_left</span>
             </button>
 
             {/* Nav Next Button */}
@@ -583,11 +611,11 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
               onClick={handleNext}
               aria-label="Next photo"
               title="다음 사진 (Right Arrow)"
-              className={`absolute right-4 md:right-8 top-1/2 -translate-y-1/2 w-12 h-12 md:w-14 md:h-14 rounded-full bg-black/40 hover:bg-black/70 text-white/90 hover:text-white backdrop-blur-xl border border-white/15 flex items-center justify-center transition-all duration-300 cursor-pointer z-30 hover:scale-110 active:scale-95 shadow-2xl ${
-                isControlsVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
+              className={`absolute right-2 md:right-8 top-1/2 -translate-y-1/2 w-11 h-11 md:w-14 md:h-14 rounded-full bg-black/50 hover:bg-black/80 text-white backdrop-blur-xl border border-white/20 flex items-center justify-center transition-all duration-300 cursor-pointer z-30 hover:scale-110 active:scale-95 shadow-2xl ${
+                isControlsVisible ? 'opacity-100' : 'opacity-80 lg:opacity-0 pointer-events-auto'
               }`}
             >
-              <span className="material-symbols-outlined text-[32px]">chevron_right</span>
+              <span className="material-symbols-outlined text-[28px] md:text-[32px]">chevron_right</span>
             </button>
 
             {/* Main Center Image */}

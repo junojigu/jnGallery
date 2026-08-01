@@ -263,6 +263,7 @@ export default function App() {
 
           if (Array.isArray(data.categories) && data.categories.length > 0) {
             setCategories(data.categories);
+            try { localStorage.setItem('pm_categories', JSON.stringify(data.categories)); } catch {}
           }
           if (Array.isArray(data.photos) && data.photos.length > 0) {
             const normalized = normalizePhotoList(data.photos, loadedCategories);
@@ -274,7 +275,7 @@ export default function App() {
                   if (p.url) featuredMap.set(p.url, true);
                 }
               });
-              return normalized.map((p) => {
+              const updated = normalized.map((p) => {
                 const sheetItem = data.photos.find((sp: any) => sp.id === p.id);
                 // If Google Sheets explicit boolean isn't present, check if local state had it featured
                 if ((!sheetItem || sheetItem.featured === undefined || sheetItem.featured === null) &&
@@ -283,16 +284,28 @@ export default function App() {
                 }
                 return p;
               });
+              try { localStorage.setItem('pm_photos', JSON.stringify(updated)); } catch {}
+              return updated;
             });
           }
           if (Array.isArray(data.tags) && data.tags.length > 0) {
-            setTags(data.tags.map((t: Tag) => (t.name?.toLowerCase() === '#minimalist' ? { ...t, name: '#sea' } : t)));
+            const formattedTags = data.tags.map((t: Tag) => (t.name?.toLowerCase() === '#minimalist' ? { ...t, name: '#sea' } : t));
+            setTags(formattedTags);
+            try { localStorage.setItem('pm_tags', JSON.stringify(formattedTags)); } catch {}
           }
           if (data.homeSettings && typeof data.homeSettings === 'object') {
-            setHomeSettings((prev) => ({ ...prev, ...data.homeSettings }));
+            setHomeSettings((prev) => {
+              const updated = { ...prev, ...data.homeSettings };
+              try { localStorage.setItem('pm_home_settings', JSON.stringify(updated)); } catch {}
+              return updated;
+            });
           }
           if (data.exhibitionInfo && typeof data.exhibitionInfo === 'object') {
-            setExhibitionInfo((prev) => ({ ...prev, ...data.exhibitionInfo }));
+            setExhibitionInfo((prev) => {
+              const updated = { ...prev, ...data.exhibitionInfo };
+              try { localStorage.setItem('pm_exhibition_info', JSON.stringify(updated)); } catch {}
+              return updated;
+            });
           }
           setSheetSyncStatus('success');
         }
