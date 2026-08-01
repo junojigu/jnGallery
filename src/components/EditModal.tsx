@@ -222,18 +222,19 @@ export const EditModal: React.FC<EditModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-      <div className="bg-white rounded-xl max-w-lg w-full p-6 md:p-8 ambient-shadow border border-[#c4c7c7]/30">
-        <div className="flex justify-between items-center mb-6 border-b border-[#e2e2e2] pb-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto">
+      <div className="bg-white rounded-xl max-w-lg w-full p-5 sm:p-6 md:p-7 ambient-shadow border border-[#c4c7c7]/30 max-h-[88vh] sm:max-h-[90vh] flex flex-col my-auto shadow-2xl">
+        <div className="flex justify-between items-center mb-4 border-b border-[#e2e2e2] pb-3 shrink-0">
           <h2 className="font-serif text-xl font-semibold text-[#000000]">
             Edit {target.type === 'category' ? 'Category' : target.type === 'tag' ? 'Tag' : 'Photo'}
           </h2>
-          <button onClick={onClose} className="text-[#747878] hover:text-[#000000] cursor-pointer">
-            <span className="material-symbols-outlined">close</span>
+          <button onClick={onClose} className="text-[#747878] hover:text-[#000000] cursor-pointer p-1 rounded-lg hover:bg-[#f3f3f4] transition-colors">
+            <span className="material-symbols-outlined text-xl">close</span>
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="flex flex-col min-h-0 flex-1 overflow-hidden">
+          <div className="flex-1 overflow-y-auto pr-2 space-y-4 custom-scrollbar">
           {target.type === 'category' && (
             <>
               <div>
@@ -381,7 +382,7 @@ export const EditModal: React.FC<EditModalProps> = ({
 
                   {/* Row 2: Applied Custom Tags on New Line (Scrollable if many tags) */}
                   {customAppliedTags.length > 0 && (
-                    <div className="pt-2 border-t border-[#e8e8e8] flex flex-wrap items-center gap-1.5 max-h-28 overflow-y-auto pr-1">
+                    <div className="pt-2 border-t border-[#e8e8e8] flex flex-wrap items-center gap-1.5 max-h-28 overflow-y-auto pr-1 custom-scrollbar">
                       {customAppliedTags.map((t) => {
                         const display = t.startsWith('#') ? t : `#${t}`;
                         return (
@@ -440,7 +441,7 @@ export const EditModal: React.FC<EditModalProps> = ({
 
                   {/* Alphabetical All Tags Dropdown Popover */}
                   {isAllTagsDropdownOpen && (
-                    <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-[#c4c7c7]/80 rounded-xl shadow-lg z-30 max-h-48 overflow-y-auto p-2.5">
+                    <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-[#c4c7c7]/80 rounded-xl shadow-lg z-30 max-h-48 overflow-y-auto p-2.5 custom-scrollbar">
                       <div className="text-[11px] font-semibold text-[#747878] mb-2 flex items-center justify-between border-b border-[#f0f0f0] pb-1.5">
                         <span>전체 태그 목록 (가나다순)</span>
                         <span className="text-[10px] text-[#a0a0a5] font-normal">총 {sortedAllTags.length}개</span>
@@ -485,7 +486,7 @@ export const EditModal: React.FC<EditModalProps> = ({
 
                   {/* Search Autocomplete Suggestions Popover */}
                   {customTag.trim() && !isAllTagsDropdownOpen && (
-                    <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-[#c4c7c7]/80 rounded-xl shadow-lg z-20 max-h-36 overflow-y-auto p-2">
+                    <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-[#c4c7c7]/80 rounded-xl shadow-lg z-20 max-h-36 overflow-y-auto p-2 custom-scrollbar">
                       {matchingSystemTags.length > 0 ? (
                         <div className="flex flex-wrap gap-1.5">
                           {matchingSystemTags.map((t) => (
@@ -623,20 +624,22 @@ export const EditModal: React.FC<EditModalProps> = ({
               </div>
             </>
           )}
+          </div>
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-[#e2e2e2]">
+          {/* Sticky Bottom Buttons Footer */}
+          <div className="flex justify-end items-center gap-3 pt-4 mt-3 border-t border-[#e2e2e2] shrink-0 bg-white">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 border border-[#747878] rounded-lg text-xs font-medium text-[#000000] hover:bg-[#e2e2e2]"
+              className="px-4 py-2 border border-[#747878] rounded-lg text-xs font-medium text-[#000000] hover:bg-[#e2e2e2] cursor-pointer transition-colors"
             >
-              Cancel
+              취소 (Cancel)
             </button>
             <button
               type="submit"
-              className="px-5 py-2 bg-[#000000] text-white rounded-lg text-xs font-medium hover:bg-opacity-90"
+              className="px-5 py-2 bg-[#000000] text-white rounded-lg text-xs font-medium hover:bg-opacity-90 cursor-pointer transition-opacity flex items-center gap-1.5"
             >
-              Save Changes
+              <span>저장 (Save Changes)</span>
             </button>
           </div>
         </form>

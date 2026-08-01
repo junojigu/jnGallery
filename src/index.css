@@ -21,13 +21,34 @@
   margin-bottom: 24px;
 }
 
-/* Custom scrollbar styling */
+/* Custom scrollbar styling matching light background */
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f1f2;
+  border-radius: 9999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #c4c7c7;
+  border-radius: 9999px;
+  border: 1.5px solid #f1f1f2;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #747878;
+}
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #c4c7c7 #f1f1f2;
 }
 
 @keyframes photoFadeIn {

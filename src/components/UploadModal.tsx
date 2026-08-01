@@ -262,258 +262,260 @@ export const UploadModal: React.FC<UploadModalProps> = ({
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 overflow-y-auto">
-      <div className="bg-white rounded-xl max-w-xl w-full p-6 md:p-8 ambient-shadow border border-[#c4c7c7]/30 my-8">
-        <div className="flex justify-between items-center mb-6 border-b border-[#e2e2e2] pb-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto">
+      <div className="bg-white rounded-xl max-w-xl w-full p-5 sm:p-6 md:p-7 ambient-shadow border border-[#c4c7c7]/30 max-h-[88vh] sm:max-h-[90vh] flex flex-col my-auto shadow-2xl">
+        <div className="flex justify-between items-center mb-4 border-b border-[#e2e2e2] pb-3 shrink-0">
           <div>
             <h2 className="font-serif text-2xl font-semibold text-[#000000]">Upload Photo</h2>
             <p className="text-xs text-[#444748] mt-1">Add a new image via hotlink URL or local file.</p>
           </div>
           <button
             onClick={onClose}
-            className="text-[#747878] hover:text-[#000000] p-1 rounded-lg transition-colors cursor-pointer"
+            className="text-[#747878] hover:text-[#000000] p-1 rounded-lg transition-colors cursor-pointer hover:bg-[#f3f3f4]"
           >
             <span className="material-symbols-outlined text-xl">close</span>
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Image Source Selection */}
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-[#444748] mb-2">
-              Image Source (File or Hotlink URL)
-            </label>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-              <label className="border-2 border-dashed border-[#c4c7c7] rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer hover:border-[#000000] hover:bg-[#f3f3f4] transition-colors relative">
-                {isUploadingCloudinary ? (
-                  <div className="flex flex-col items-center gap-1">
-                    <span className="material-symbols-outlined text-2xl text-amber-500 animate-spin">sync</span>
-                    <span className="text-xs text-amber-600 font-semibold">Cloudinary 업로드 중...</span>
-                  </div>
-                ) : (
-                  <>
-                    <span className="material-symbols-outlined text-2xl text-[#747878] mb-1">upload_file</span>
-                    <span className="text-xs text-[#444748] font-medium">Choose Local File</span>
-                    {cloudinaryCloudName && (
-                      <span className="text-[10px] text-emerald-600 font-mono mt-0.5">☁️ Cloudinary Auto Upload</span>
-                    )}
-                  </>
-                )}
-                <input type="file" accept="image/*" onChange={handleFileChange} disabled={isUploadingCloudinary} className="hidden" />
+        <form onSubmit={handleSubmit} className="flex flex-col min-h-0 flex-1 overflow-hidden">
+          <div className="flex-1 overflow-y-auto pr-2 space-y-4 custom-scrollbar">
+            {/* Image Source Selection */}
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-[#444748] mb-2">
+                Image Source (File or Hotlink URL)
               </label>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                <label className="border-2 border-dashed border-[#c4c7c7] rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer hover:border-[#000000] hover:bg-[#f3f3f4] transition-colors relative">
+                  {isUploadingCloudinary ? (
+                    <div className="flex flex-col items-center gap-1">
+                      <span className="material-symbols-outlined text-2xl text-amber-500 animate-spin">sync</span>
+                      <span className="text-xs text-amber-600 font-semibold">Cloudinary 업로드 중...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <span className="material-symbols-outlined text-2xl text-[#747878] mb-1">upload_file</span>
+                      <span className="text-xs text-[#444748] font-medium">Choose Local File</span>
+                      {cloudinaryCloudName && (
+                        <span className="text-[10px] text-emerald-600 font-mono mt-0.5">☁️ Cloudinary Auto Upload</span>
+                      )}
+                    </>
+                  )}
+                  <input type="file" accept="image/*" onChange={handleFileChange} disabled={isUploadingCloudinary} className="hidden" />
+                </label>
 
-              <div className="flex flex-col justify-center">
+                <div className="flex flex-col justify-center">
+                  <input
+                    type="text"
+                    value={imageUrl}
+                    onChange={(e) => setImageUrl(e.target.value)}
+                    placeholder="https://... (Hotlink Image URL)"
+                    className="w-full bg-[#f9f9f9] border border-[#c4c7c7] rounded-lg px-3 py-2 text-xs text-[#000000] focus:outline-none focus:border-[#000000]"
+                  />
+                  <span className="text-[11px] text-[#747878] mt-1">Direct HTML hotlinks supported.</span>
+                </div>
+              </div>
+
+              {cloudinaryError && (
+                <div className="text-xs text-red-600 bg-red-50 p-2 rounded-lg border border-red-200 mb-2">
+                  {cloudinaryError}
+                </div>
+              )}
+
+              {/* Quick hotlink buttons */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[11px] text-[#747878]">Presets:</span>
+                {sampleLinks.map((sample, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => {
+                      setImageUrl(sample.url);
+                      handleExtractExifFromUrl(sample.url);
+                    }}
+                    className="text-[11px] bg-[#e2e2e2] text-[#1a1c1c] hover:bg-[#dcdddd] px-2 py-0.5 rounded cursor-pointer transition-colors"
+                  >
+                    {sample.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Preview */}
+              {imageUrl && (
+                <div className="mt-3 relative w-full h-40 rounded-lg overflow-hidden border border-[#c4c7c7] bg-[#f3f3f4]">
+                  <img src={imageUrl} alt="Preview" className="w-full h-full object-cover" />
+                </div>
+              )}
+            </div>
+
+            {/* Title & Category */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-[#444748] mb-1">
+                  Title *
+                </label>
                 <input
                   type="text"
-                  value={imageUrl}
-                  onChange={(e) => setImageUrl(e.target.value)}
-                  placeholder="https://... (Hotlink Image URL)"
-                  className="w-full bg-[#f9f9f9] border border-[#c4c7c7] rounded-lg px-3 py-2 text-xs text-[#000000] focus:outline-none focus:border-[#000000]"
+                  required
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="e.g. Autumn Morning Light"
+                  className="w-full bg-[#f9f9f9] border border-[#c4c7c7] rounded-lg px-3 py-2 text-sm text-[#000000] focus:outline-none focus:border-[#000000]"
                 />
-                <span className="text-[11px] text-[#747878] mt-1">Direct HTML hotlinks supported.</span>
               </div>
-            </div>
 
-            {cloudinaryError && (
-              <div className="text-xs text-red-600 bg-red-50 p-2 rounded-lg border border-red-200 mb-2">
-                {cloudinaryError}
-              </div>
-            )}
-
-            {/* Quick hotlink buttons */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[11px] text-[#747878]">Presets:</span>
-              {sampleLinks.map((sample, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => {
-                    setImageUrl(sample.url);
-                    handleExtractExifFromUrl(sample.url);
-                  }}
-                  className="text-[11px] bg-[#e2e2e2] text-[#1a1c1c] hover:bg-[#dcdddd] px-2 py-0.5 rounded cursor-pointer transition-colors"
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-[#444748] mb-1">
+                  Category
+                </label>
+                <select
+                  value={categoryId}
+                  onChange={(e) => setCategoryId(e.target.value)}
+                  className="w-full bg-[#f9f9f9] border border-[#c4c7c7] rounded-lg px-3 py-2 text-sm text-[#000000] focus:outline-none focus:border-[#000000]"
                 >
-                  {sample.label}
-                </button>
-              ))}
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
-            {/* Preview */}
-            {imageUrl && (
-              <div className="mt-3 relative w-full h-40 rounded-lg overflow-hidden border border-[#c4c7c7] bg-[#f3f3f4]">
-                <img src={imageUrl} alt="Preview" className="w-full h-full object-cover" />
-              </div>
-            )}
-          </div>
-
-          {/* Title & Category */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Description */}
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-[#444748] mb-1">
-                Title *
+                Description
               </label>
+              <textarea
+                rows={2}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Describe the context, mood, or capture technique..."
+                className="w-full bg-[#f9f9f9] border border-[#c4c7c7] rounded-lg px-3 py-2 text-sm text-[#000000] focus:outline-none focus:border-[#000000]"
+              />
+            </div>
+
+            {/* Tags */}
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-[#444748] mb-1">
+                Tags
+              </label>
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {Array.from(new Set([...tags.map((t) => t.name), ...selectedTagNames])).map((tagName) => {
+                  const isSelected = selectedTagNames.includes(tagName);
+                  return (
+                    <button
+                      key={tagName}
+                      type="button"
+                      onClick={() => handleToggleTag(tagName)}
+                      className={`text-xs px-2.5 py-1 rounded-full transition-colors cursor-pointer ${
+                        isSelected
+                          ? 'bg-[#000000] text-white'
+                          : 'bg-[#f3f3f4] text-[#444748] hover:bg-[#e2e2e2]'
+                      }`}
+                    >
+                      {tagName.startsWith('#') ? tagName : `#${tagName}`}
+                    </button>
+                  );
+                })}
+              </div>
               <input
                 type="text"
-                required
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g. Autumn Morning Light"
-                className="w-full bg-[#f9f9f9] border border-[#c4c7c7] rounded-lg px-3 py-2 text-sm text-[#000000] focus:outline-none focus:border-[#000000]"
+                value={customTag}
+                onChange={(e) => setCustomTag(e.target.value)}
+                onKeyDown={handleAddCustomTag}
+                placeholder="태그 입력 (예: #sunset #ocean 또는 #sunset, #ocean 입력 후 Enter)"
+                className="w-full bg-[#f9f9f9] border border-[#c4c7c7] rounded-lg px-3 py-1.5 text-xs text-[#000000] focus:outline-none focus:border-[#000000]"
               />
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-[#444748] mb-1">
-                Category
-              </label>
-              <select
-                value={categoryId}
-                onChange={(e) => setCategoryId(e.target.value)}
-                className="w-full bg-[#f9f9f9] border border-[#c4c7c7] rounded-lg px-3 py-2 text-sm text-[#000000] focus:outline-none focus:border-[#000000]"
-              >
-                {categories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Description */}
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-[#444748] mb-1">
-              Description
-            </label>
-            <textarea
-              rows={2}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Describe the context, mood, or capture technique..."
-              className="w-full bg-[#f9f9f9] border border-[#c4c7c7] rounded-lg px-3 py-2 text-sm text-[#000000] focus:outline-none focus:border-[#000000]"
-            />
-          </div>
-
-          {/* Tags */}
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-[#444748] mb-1">
-              Tags
-            </label>
-            <div className="flex flex-wrap gap-1.5 mb-2">
-              {Array.from(new Set([...tags.map((t) => t.name), ...selectedTagNames])).map((tagName) => {
-                const isSelected = selectedTagNames.includes(tagName);
-                return (
+            {/* EXIF Metadata */}
+            <div className="pt-2 border-t border-[#e2e2e2]">
+              {exifNotice && (
+                <div className="mb-3 text-xs p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 font-medium flex items-center justify-between">
+                  <span>{exifNotice}</span>
                   <button
-                    key={tagName}
                     type="button"
-                    onClick={() => handleToggleTag(tagName)}
-                    className={`text-xs px-2.5 py-1 rounded-full transition-colors cursor-pointer ${
-                      isSelected
-                        ? 'bg-[#000000] text-white'
-                        : 'bg-[#f3f3f4] text-[#444748] hover:bg-[#e2e2e2]'
-                    }`}
+                    onClick={() => setExifNotice(null)}
+                    className="text-amber-700 hover:text-amber-950 font-bold ml-2 text-xs"
                   >
-                    {tagName.startsWith('#') ? tagName : `#${tagName}`}
+                    ✕
                   </button>
-                );
-              })}
+                </div>
+              )}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-[11px] text-[#747878] mb-1">Location (촬영 위치)</label>
+                  <input
+                    type="text"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    placeholder="e.g. Northern Alps, AT"
+                    className="w-full bg-[#f9f9f9] border border-[#c4c7c7] rounded px-2 py-1 text-xs text-[#000000]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] text-[#747878] mb-1 flex items-center justify-between">
+                    <span>Camera (카메라 모델)</span>
+                    <span className="text-[10px] text-amber-600 font-normal">EXIF 자동 감지</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={camera}
+                    onChange={(e) => setCamera(e.target.value)}
+                    placeholder="e.g. Sony A7R IV • 50mm"
+                    className="w-full bg-[#f9f9f9] border border-[#c4c7c7] rounded px-2 py-1 text-xs text-[#000000] focus:border-amber-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] text-[#747878] mb-1 flex items-center justify-between">
+                    <span>Shutter / ISO (촬영 정보)</span>
+                    <span className="text-[10px] text-amber-600 font-normal">EXIF 자동 감지</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={exif}
+                    onChange={(e) => setExif(e.target.value)}
+                    placeholder="e.g. f/8 • 1/250s • ISO 100"
+                    className="w-full bg-[#f9f9f9] border border-[#c4c7c7] rounded px-2 py-1 text-xs text-[#000000] focus:border-amber-500"
+                  />
+                </div>
+              </div>
             </div>
-            <input
-              type="text"
-              value={customTag}
-              onChange={(e) => setCustomTag(e.target.value)}
-              onKeyDown={handleAddCustomTag}
-              placeholder="태그 입력 (예: #sunset #ocean 또는 #sunset, #ocean 입력 후 Enter)"
-              className="w-full bg-[#f9f9f9] border border-[#c4c7c7] rounded-lg px-3 py-1.5 text-xs text-[#000000] focus:outline-none focus:border-[#000000]"
-            />
-          </div>
 
-          {/* EXIF Metadata */}
-          <div className="pt-2 border-t border-[#e2e2e2]">
-            {exifNotice && (
-              <div className="mb-3 text-xs p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 font-medium flex items-center justify-between">
-                <span>{exifNotice}</span>
-                <button
-                  type="button"
-                  onClick={() => setExifNotice(null)}
-                  className="text-amber-700 hover:text-amber-950 font-bold ml-2 text-xs"
-                >
-                  ✕
-                </button>
-              </div>
-            )}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-[11px] text-[#747878] mb-1">Location (촬영 위치)</label>
+            {/* Featured option */}
+            <div className="pt-2">
+              <label className="inline-flex items-center gap-2 cursor-pointer select-none text-xs font-medium text-[#1a1c1c] bg-[#f5f5f5] hover:bg-[#eaeaea] px-3 py-2 rounded-lg border border-[#e2e2e2] transition-colors">
                 <input
-                  type="text"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  placeholder="e.g. Northern Alps, AT"
-                  className="w-full bg-[#f9f9f9] border border-[#c4c7c7] rounded px-2 py-1 text-xs text-[#000000]"
+                  type="checkbox"
+                  checked={featured}
+                  onChange={(e) => setFeatured(e.target.checked)}
+                  className="w-4 h-4 rounded border-[#c4c7c7] text-black focus:ring-black cursor-pointer"
                 />
-              </div>
-              <div>
-                <label className="block text-[11px] text-[#747878] mb-1 flex items-center justify-between">
-                  <span>Camera (카메라 모델)</span>
-                  <span className="text-[10px] text-amber-600 font-normal">EXIF 자동 감지</span>
-                </label>
-                <input
-                  type="text"
-                  value={camera}
-                  onChange={(e) => setCamera(e.target.value)}
-                  placeholder="e.g. Sony A7R IV • 50mm"
-                  className="w-full bg-[#f9f9f9] border border-[#c4c7c7] rounded px-2 py-1 text-xs text-[#000000] focus:border-amber-500"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] text-[#747878] mb-1 flex items-center justify-between">
-                  <span>Shutter / ISO (촬영 정보)</span>
-                  <span className="text-[10px] text-amber-600 font-normal">EXIF 자동 감지</span>
-                </label>
-                <input
-                  type="text"
-                  value={exif}
-                  onChange={(e) => setExif(e.target.value)}
-                  placeholder="e.g. f/8 • 1/250s • ISO 100"
-                  className="w-full bg-[#f9f9f9] border border-[#c4c7c7] rounded px-2 py-1 text-xs text-[#000000] focus:border-amber-500"
-                />
-              </div>
+                <span className="flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-amber-500 text-base leading-none">star</span>
+                  <span>관리자 추천작으로 등록 (Featured)</span>
+                </span>
+              </label>
             </div>
           </div>
 
-          {/* Featured option */}
-          <div className="pt-2">
-            <label className="inline-flex items-center gap-2 cursor-pointer select-none text-xs font-medium text-[#1a1c1c] bg-[#f5f5f5] hover:bg-[#eaeaea] px-3 py-2 rounded-lg border border-[#e2e2e2] transition-colors">
-              <input
-                type="checkbox"
-                checked={featured}
-                onChange={(e) => setFeatured(e.target.checked)}
-                className="w-4 h-4 rounded border-[#c4c7c7] text-black focus:ring-black cursor-pointer"
-              />
-              <span className="flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-amber-500 text-base leading-none">star</span>
-                <span>관리자 추천작으로 등록 (Featured)</span>
-              </span>
-            </label>
-          </div>
-
-          {/* Actions */}
-          <div className="flex justify-end gap-3 pt-4 border-t border-[#e2e2e2]">
+          {/* Sticky Actions Footer */}
+          <div className="flex justify-end items-center gap-3 pt-4 mt-3 border-t border-[#e2e2e2] shrink-0 bg-white">
             <button
               type="button"
               onClick={onClose}
               className="px-5 py-2 border border-[#747878] text-[#000000] rounded-lg text-xs font-medium hover:bg-[#e2e2e2] transition-colors cursor-pointer"
             >
-              Cancel
+              취소 (Cancel)
             </button>
             <button
               type="submit"
               disabled={!title.trim() || !imageUrl.trim()}
               className="px-6 py-2 bg-[#000000] text-white rounded-lg text-xs font-medium hover:bg-opacity-90 disabled:opacity-40 transition-opacity cursor-pointer"
             >
-              Publish Photo
+              저장 (Publish Photo)
             </button>
           </div>
         </form>
