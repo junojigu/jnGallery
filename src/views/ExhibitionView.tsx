@@ -20,10 +20,12 @@ export const ExhibitionView: React.FC<ExhibitionViewProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'intro' | 'artworks' | 'artist'>('intro');
 
-  // Filter curated exhibition photos
+  // Filter curated exhibition photos maintaining the exact exhibitionPhotoIds order
   const selectedIds = exhibitionInfo.exhibitionPhotoIds || [];
   const exhibitionPhotos = selectedIds.length > 0
-    ? photos.filter((p) => selectedIds.includes(p.id))
+    ? photos
+        .filter((p) => selectedIds.includes(p.id))
+        .sort((a, b) => selectedIds.indexOf(a.id) - selectedIds.indexOf(b.id))
     : photos.filter((p) => p.featured).length > 0
     ? photos.filter((p) => p.featured)
     : photos;

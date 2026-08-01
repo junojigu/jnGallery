@@ -24,6 +24,80 @@ export const ExhibitionEditModal: React.FC<ExhibitionEditModalProps> = ({
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
+  // Tag filter & Drag & Drop Reordering states
+  const [searchTagFilter, setSearchTagFilter] = useState('');
+  const [isTagSearchOpen, setIsTagSearchOpen] = useState(false);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+
+  // Collect all unique tags and categories from photos
+  const allUniqueTags = React.useMemo(() => {
+    const tagSet = new Set<string>();
+    photos.forEach((p) => {
+      if (p.category) tagSet.add(p.category);
+      if (Array.isArray(p.tags)) {
+        p.tags.forEach((t) => {
+          if (typeof t === 'string') tagSet.add(t);
+          else if (t && typeof t === 'object' && 'name' in t) tagSet.add((t as any).name);
+        });
+      }
+    });
+    return Array.from(tagSet).filter(Boolean);
+  }, [photos]);
+
+  // Filter photos based on searchTagFilter
+  const filteredPhotos = React.useMemo(() => {
+    if (!searchTagFilter.trim()) return photos;
+    const term = searchTagFilter.trim().toLowerCase();
+    return photos.filter((p) => {
+      const matchTitle = p.title.toLowerCase().includes(term);
+      const matchCategory = p.category?.toLowerCase().includes(term);
+      const matchLocation = p.location?.toLowerCase().includes(term);
+      const matchTags = Array.isArray(p.tags) && p.tags.some((t) => {
+        const tagName = typeof t === 'string' ? t : (t as any)?.name || '';
+        return tagName.toLowerCase().includes(term);
+      });
+      return matchTitle || matchCategory || matchLocation || matchTags;
+    });
+  }, [photos, searchTagFilter]);
+
+  // Ordered list of selected photo objects for Drag & Drop
+  const selectedPhotoObjects = React.useMemo(() => {
+    const ids = formData.exhibitionPhotoIds || [];
+    const photoMap = new Map(photos.map((p) => [p.id, p]));
+    return ids.map((id) => photoMap.get(id)).filter(Boolean) as Photo[];
+  }, [formData.exhibitionPhotoIds, photos]);
+
+  // Reordering handlers
+  const handleMovePhoto = (fromIndex: number, toIndex: number) => {
+    const currentIds = [...(formData.exhibitionPhotoIds || [])];
+    if (fromIndex < 0 || fromIndex >= currentIds.length || toIndex < 0 || toIndex >= currentIds.length) return;
+    const [movedId] = currentIds.splice(fromIndex, 1);
+    currentIds.splice(toIndex, 0, movedId);
+    setFormData((prev) => ({ ...prev, exhibitionPhotoIds: currentIds }));
+  };
+
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (dragOverIndex !== index) {
+      setDragOverIndex(index);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent, targetIndex: number) => {
+    e.preventDefault();
+    if (draggedIndex !== null && draggedIndex !== targetIndex) {
+      handleMovePhoto(draggedIndex, targetIndex);
+    }
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
+
   useEffect(() => {
     setFormData(exhibitionInfo);
   }, [exhibitionInfo, isOpen]);
@@ -324,85 +398,269 @@ export const ExhibitionEditModal: React.FC<ExhibitionEditModalProps> = ({
             </div>
           </div>
 
-          {/* Section 3: Exhibition Artworks Curation */}
-          <div className="space-y-4 pt-2">
+          {/* Section 3: Exhibition Artworks Curation & Drag-and-Drop Reordering */}
+          <div className="space-y-5 pt-2">
             <div className="flex items-center justify-between border-b border-[#c4c7c7]/30 pb-2">
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-lg text-[#000000]">collections</span>
-                <h3 className="font-sans font-semibold text-base text-[#000000]">3. 특별전시 참여 작품 큐레이션 (Exhibition Artworks)</h3>
+                <h3 className="font-sans font-semibold text-base text-[#000000]">
+                  3. 특별전시 참여 작품 큐레이션 및 순서 변경
+                </h3>
               </div>
               <span className="text-xs text-[#747878] font-medium">
-                선택됨: {(formData.exhibitionPhotoIds || []).length} / {photos.length}점
+                선택됨: <strong className="text-[#000000]">{selectedPhotoObjects.length}</strong> / {photos.length}점
               </span>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  const featuredIds = photos.filter((p) => p.featured).map((p) => p.id);
-                  setFormData((prev) => ({ ...prev, exhibitionPhotoIds: featuredIds }));
-                }}
-                className="px-2.5 py-1 bg-[#e2e2e2] text-[#1a1c1c] hover:bg-[#dcdddd] rounded text-xs font-medium cursor-pointer"
-              >
-                ⭐ 추천(Featured) 사진만 선택
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setFormData((prev) => ({ ...prev, exhibitionPhotoIds: photos.map((p) => p.id) }));
-                }}
-                className="px-2.5 py-1 bg-[#e2e2e2] text-[#1a1c1c] hover:bg-[#dcdddd] rounded text-xs font-medium cursor-pointer"
-              >
-                🖼️ 전체 사진 선택
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setFormData((prev) => ({ ...prev, exhibitionPhotoIds: [] }));
-                }}
-                className="px-2.5 py-1 bg-[#f0f0f0] text-[#747878] hover:text-[#000000] rounded text-xs font-medium cursor-pointer"
-              >
-                ✕ 전체 선택 해제
-              </button>
+            {/* Selected Photos Order Track (Drag & Drop Reordering Area) */}
+            <div className="bg-[#f0f0f2] p-3.5 rounded-2xl border border-[#c4c7c7] space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-[#1a1c1c]">
+                  <span className="material-symbols-outlined text-base text-amber-600">drag_indicator</span>
+                  <span>선택된 특별전시 작품 순서 (카드를 드래그하거나 화살표로 순서를 변경하세요)</span>
+                </div>
+                {selectedPhotoObjects.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setFormData((prev) => ({ ...prev, exhibitionPhotoIds: [] }))}
+                    className="text-[11px] text-red-600 hover:underline font-medium cursor-pointer"
+                  >
+                    전체 해제
+                  </button>
+                )}
+              </div>
+
+              {selectedPhotoObjects.length === 0 ? (
+                <div className="py-6 text-center text-xs text-[#747878] border border-dashed border-[#c4c7c7] rounded-xl bg-white">
+                  아래 사진 목록에서 작품을 클릭하여 특별전시에 추가해 주세요.
+                </div>
+              ) : (
+                <div className="flex gap-2.5 overflow-x-auto pb-2 pt-1 px-1 custom-scrollbar">
+                  {selectedPhotoObjects.map((photo, index) => (
+                    <div
+                      key={photo.id}
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, index)}
+                      onDragOver={(e) => handleDragOver(e, index)}
+                      onDrop={(e) => handleDrop(e, index)}
+                      className={`relative flex-shrink-0 w-28 bg-white rounded-xl border p-1.5 shadow-xs transition-all cursor-grab active:cursor-grabbing group ${
+                        dragOverIndex === index
+                          ? 'border-amber-500 scale-105 ring-2 ring-amber-300'
+                          : 'border-[#c4c7c7] hover:border-[#000000]'
+                      }`}
+                    >
+                      {/* Order Badge */}
+                      <div className="absolute top-2 left-2 bg-[#000000] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full z-10 shadow-xs">
+                        {String(index + 1).padStart(2, '0')}
+                      </div>
+
+                      {/* Remove Button */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const nextIds = (formData.exhibitionPhotoIds || []).filter((id) => id !== photo.id);
+                          setFormData((prev) => ({ ...prev, exhibitionPhotoIds: nextIds }));
+                        }}
+                        title="특별전시에서 제외"
+                        className="absolute top-2 right-2 bg-black/60 hover:bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs z-10 transition-colors cursor-pointer"
+                      >
+                        ✕
+                      </button>
+
+                      {/* Image Preview */}
+                      <div className="aspect-square rounded-lg overflow-hidden bg-[#e2e2e2] mb-1.5">
+                        <img src={photo.url} alt={photo.title} className="w-full h-full object-cover pointer-events-none" />
+                      </div>
+
+                      {/* Title */}
+                      <p className="text-[11px] font-semibold text-[#000000] truncate text-center px-1">
+                        {photo.title}
+                      </p>
+
+                      {/* Left / Right Arrow Reorder Controls */}
+                      <div className="flex items-center justify-between mt-1 pt-1 border-t border-[#f0f0f0]">
+                        <button
+                          type="button"
+                          disabled={index === 0}
+                          onClick={() => handleMovePhoto(index, index - 1)}
+                          title="앞으로 이동"
+                          className="w-6 h-5 flex items-center justify-center rounded bg-[#f0f0f0] hover:bg-[#000000] hover:text-white disabled:opacity-30 disabled:hover:bg-[#f0f0f0] disabled:hover:text-inherit text-xs cursor-pointer transition-colors"
+                        >
+                          ◀
+                        </button>
+                        <span className="text-[9px] text-[#747878] font-mono">#{index + 1}</span>
+                        <button
+                          type="button"
+                          disabled={index === selectedPhotoObjects.length - 1}
+                          onClick={() => handleMovePhoto(index, index + 1)}
+                          title="뒤로 이동"
+                          className="w-6 h-5 flex items-center justify-center rounded bg-[#f0f0f0] hover:bg-[#000000] hover:text-white disabled:opacity-30 disabled:hover:bg-[#f0f0f0] disabled:hover:text-inherit text-xs cursor-pointer transition-colors"
+                        >
+                          ▶
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
-            <p className="text-xs text-[#747878]">
-              아래 갤러리 이미지에서 클릭하여 특별전 전시대상 작품을 추가/제외할 수 있습니다. (선택 해제 시 기본적으로 추천 작품이 전시됩니다)
-            </p>
+            {/* Curation Quick Action Buttons Bar */}
+            <div className="space-y-2.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsTagSearchOpen(!isTagSearchOpen)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-all flex items-center gap-1 border ${
+                    isTagSearchOpen || searchTagFilter
+                      ? 'bg-[#000000] text-white border-[#000000] shadow-sm'
+                      : 'bg-white text-[#1a1c1c] border-[#c4c7c7] hover:border-[#000000]'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-sm">sell</span>
+                  <span>🏷️ 태그로 검색하여 선택하기</span>
+                </button>
 
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 max-h-56 overflow-y-auto p-2 bg-[#f3f3f4] rounded-xl border border-[#c4c7c7]">
-              {photos.map((photo) => {
-                const currentSelected = formData.exhibitionPhotoIds || [];
-                const isSelected = currentSelected.includes(photo.id);
+                <button
+                  type="button"
+                  onClick={() => {
+                    const featuredIds = photos.filter((p) => p.featured).map((p) => p.id);
+                    setFormData((prev) => ({ ...prev, exhibitionPhotoIds: featuredIds }));
+                  }}
+                  className="px-3 py-1.5 bg-white border border-[#c4c7c7] hover:border-[#000000] text-[#1a1c1c] rounded-lg text-xs font-semibold cursor-pointer transition-all"
+                >
+                  ⭐ 추천(Featured) 사진만 선택
+                </button>
 
-                const togglePhoto = () => {
-                  const nextSelected = isSelected
-                    ? currentSelected.filter((id) => id !== photo.id)
-                    : [...currentSelected, photo.id];
-                  setFormData((prev) => ({ ...prev, exhibitionPhotoIds: nextSelected }));
-                };
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFormData((prev) => ({ ...prev, exhibitionPhotoIds: photos.map((p) => p.id) }));
+                  }}
+                  className="px-3 py-1.5 bg-white border border-[#c4c7c7] hover:border-[#000000] text-[#1a1c1c] rounded-lg text-xs font-semibold cursor-pointer transition-all"
+                >
+                  🖼️ 전체 사진 선택
+                </button>
+              </div>
 
-                return (
-                  <div
-                    key={photo.id}
-                    onClick={togglePhoto}
-                    className={`relative aspect-square rounded-lg overflow-hidden cursor-pointer border-2 transition-all ${
-                      isSelected ? 'border-[#000000] ring-2 ring-amber-400' : 'border-transparent opacity-60 hover:opacity-100'
-                    }`}
-                  >
-                    <img src={photo.url} alt={photo.title} className="w-full h-full object-cover" />
-                    {isSelected && (
-                      <div className="absolute top-1 right-1 bg-[#000000] text-white rounded-full w-5 h-5 flex items-center justify-center">
-                        <span className="material-symbols-outlined text-xs">check</span>
-                      </div>
-                    )}
-                    <div className="absolute bottom-0 inset-x-0 bg-black/60 text-white text-[9px] px-1 py-0.5 truncate text-center">
-                      {photo.title}
+              {/* Tag Search & Filter Drawer */}
+              {(isTagSearchOpen || searchTagFilter) && (
+                <div className="p-3 bg-white rounded-xl border border-[#c4c7c7] shadow-xs space-y-2.5 animate-fadeIn">
+                  <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center justify-between">
+                    <div className="relative flex-1">
+                      <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-base text-[#747878]">
+                        search
+                      </span>
+                      <input
+                        type="text"
+                        value={searchTagFilter}
+                        onChange={(e) => setSearchTagFilter(e.target.value)}
+                        placeholder="태그 또는 키워드 검색 (예: 바다, 풍경, 자연, 흑백...)"
+                        className="w-full pl-8 pr-8 py-1.5 text-xs bg-[#f3f3f4] border border-[#c4c7c7] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#000000]"
+                      />
+                      {searchTagFilter && (
+                        <button
+                          type="button"
+                          onClick={() => setSearchTagFilter('')}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-[#747878] hover:text-[#000000]"
+                        >
+                          ✕
+                        </button>
+                      )}
                     </div>
+
+                    {/* Batch Add Filtered Button */}
+                    {searchTagFilter.trim() && filteredPhotos.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const currentSelected = new Set(formData.exhibitionPhotoIds || []);
+                          filteredPhotos.forEach((p) => currentSelected.add(p.id));
+                          setFormData((prev) => ({ ...prev, exhibitionPhotoIds: Array.from(currentSelected) }));
+                        }}
+                        className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold cursor-pointer shrink-0 transition-colors flex items-center gap-1 shadow-xs"
+                      >
+                        <span className="material-symbols-outlined text-sm">add_circle</span>
+                        <span>'{searchTagFilter}' 태그 검색결과 ({filteredPhotos.length}장) 모두 선택 추가</span>
+                      </button>
+                    )}
                   </div>
-                );
-              })}
+
+                  {/* Popular Quick Tag Chips */}
+                  {allUniqueTags.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-[#f0f0f0]">
+                      <span className="text-[11px] text-[#747878] font-semibold mr-1">인기 태그:</span>
+                      {allUniqueTags.slice(0, 12).map((tag) => (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() => setSearchTagFilter(tag)}
+                          className={`px-2 py-0.5 rounded-full text-[11px] font-medium transition-all cursor-pointer ${
+                            searchTagFilter.toLowerCase() === tag.toLowerCase()
+                              ? 'bg-[#000000] text-white font-bold'
+                              : 'bg-[#f0f0f0] text-[#444748] hover:bg-[#e2e2e2] hover:text-[#000000]'
+                          }`}
+                        >
+                          #{tag}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Photos Select Grid */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-xs text-[#747878]">
+                <span>
+                  사진을 클릭하여 특별전에 추가/제외하세요 ({filteredPhotos.length}장 검색됨)
+                </span>
+                {searchTagFilter && (
+                  <span className="text-amber-700 font-semibold">
+                    필터: '{searchTagFilter}'
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 max-h-60 overflow-y-auto p-2 bg-[#f3f3f4] rounded-xl border border-[#c4c7c7] custom-scrollbar">
+                {filteredPhotos.map((photo) => {
+                  const currentSelected = formData.exhibitionPhotoIds || [];
+                  const isSelected = currentSelected.includes(photo.id);
+                  const selectedOrder = isSelected ? currentSelected.indexOf(photo.id) + 1 : null;
+
+                  const togglePhoto = () => {
+                    const nextSelected = isSelected
+                      ? currentSelected.filter((id) => id !== photo.id)
+                      : [...currentSelected, photo.id];
+                    setFormData((prev) => ({ ...prev, exhibitionPhotoIds: nextSelected }));
+                  };
+
+                  return (
+                    <div
+                      key={photo.id}
+                      onClick={togglePhoto}
+                      className={`relative aspect-square rounded-lg overflow-hidden cursor-pointer border-2 transition-all ${
+                        isSelected
+                          ? 'border-[#000000] ring-2 ring-amber-400 scale-[0.98]'
+                          : 'border-transparent opacity-60 hover:opacity-100 hover:scale-102'
+                      }`}
+                    >
+                      <img src={photo.url} alt={photo.title} className="w-full h-full object-cover" />
+
+                      {isSelected && (
+                        <div className="absolute top-1 right-1 bg-[#000000] text-white rounded-full text-[10px] font-bold w-5 h-5 flex items-center justify-center shadow-md">
+                          {selectedOrder}
+                        </div>
+                      )}
+
+                      <div className="absolute bottom-0 inset-x-0 bg-black/60 text-white text-[9px] px-1 py-0.5 truncate text-center">
+                        {photo.title}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
