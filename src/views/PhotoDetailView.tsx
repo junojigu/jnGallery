@@ -84,14 +84,14 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
 
   const lastWheelTimeRef = React.useRef<number>(0);
 
-  // Slideshow auto-advance timer
+  // Slideshow auto-advance timer (works in both standard and fullscreen modes)
   useEffect(() => {
-    if (!isFullscreen || !isPlaying) return;
+    if (!isPlaying) return;
     const timer = setInterval(() => {
       handleNext();
     }, slideInterval * 1000);
     return () => clearInterval(timer);
-  }, [isFullscreen, isPlaying, slideInterval, currentIndex, effectivePhotos]);
+  }, [isPlaying, slideInterval, currentIndex, effectivePhotos]);
 
   // Auto-hide controls in fullscreen theater mode
   const handleMouseMoveTheater = () => {
@@ -106,7 +106,6 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
 
   useEffect(() => {
     if (!isFullscreen) {
-      setIsPlaying(false);
       setIsZoomed(false);
       setIsControlsVisible(true);
     }
@@ -244,7 +243,50 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
           )}
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
+          {/* Slideshow Play / Pause Button in Header */}
+          <button
+            onClick={() => setIsPlaying(!isPlaying)}
+            title={isPlaying ? '슬라이드쇼 일시정지' : '슬라이드쇼 자동재생'}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer border ${
+              isPlaying
+                ? 'bg-[#000000] text-white border-[#000000] shadow-md animate-pulse'
+                : 'bg-white text-[#1a1c1c] border-[#c4c7c7] hover:border-[#000000]'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[18px]">
+              {isPlaying ? 'pause' : 'play_arrow'}
+            </span>
+            <span className="hidden sm:inline">{isPlaying ? '일시정지' : '슬라이드쇼'}</span>
+          </button>
+
+          {/* Interval Switcher when playing */}
+          {isPlaying && (
+            <div className="flex items-center bg-white border border-[#c4c7c7] rounded-full p-0.5 text-xs">
+              {[3, 5, 8].map((sec) => (
+                <button
+                  key={sec}
+                  onClick={() => setSlideInterval(sec)}
+                  className={`px-2 py-0.5 rounded-full font-semibold transition-all cursor-pointer text-[11px] ${
+                    slideInterval === sec ? 'bg-[#000000] text-white' : 'text-[#555] hover:text-[#000]'
+                  }`}
+                >
+                  {sec}s
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Fullscreen Button */}
+          <button
+            onClick={() => setIsFullscreen(true)}
+            title="전체 화면 극장 모드 (F)"
+            aria-label="Fullscreen view"
+            className="w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center border border-[#c4c7c7] text-[#444748] hover:border-[#000000] hover:text-[#000000] transition-colors cursor-pointer"
+          >
+            <span className="material-symbols-outlined text-[20px]">fullscreen</span>
+          </button>
+
           <button
             onClick={handleEditClick}
             aria-label="Edit photo"
