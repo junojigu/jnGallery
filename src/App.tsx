@@ -818,9 +818,11 @@ export default function App() {
         {activeView === 'exhibition' && (
           <ExhibitionView
             exhibitionInfo={exhibitionInfo}
+            photos={photos}
             isAdmin={isAdmin}
             onOpenEditModal={() => setIsExhibitionEditOpen(true)}
             onGoToGallery={() => setActiveView('gallery')}
+            onViewPhoto={handleViewPhotoDetail}
           />
         )}
 

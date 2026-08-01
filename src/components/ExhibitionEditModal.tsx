@@ -324,6 +324,88 @@ export const ExhibitionEditModal: React.FC<ExhibitionEditModalProps> = ({
             </div>
           </div>
 
+          {/* Section 3: Exhibition Artworks Curation */}
+          <div className="space-y-4 pt-2">
+            <div className="flex items-center justify-between border-b border-[#c4c7c7]/30 pb-2">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-lg text-[#000000]">collections</span>
+                <h3 className="font-sans font-semibold text-base text-[#000000]">3. 특별전시 참여 작품 큐레이션 (Exhibition Artworks)</h3>
+              </div>
+              <span className="text-xs text-[#747878] font-medium">
+                선택됨: {(formData.exhibitionPhotoIds || []).length} / {photos.length}점
+              </span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const featuredIds = photos.filter((p) => p.featured).map((p) => p.id);
+                  setFormData((prev) => ({ ...prev, exhibitionPhotoIds: featuredIds }));
+                }}
+                className="px-2.5 py-1 bg-[#e2e2e2] text-[#1a1c1c] hover:bg-[#dcdddd] rounded text-xs font-medium cursor-pointer"
+              >
+                ⭐ 추천(Featured) 사진만 선택
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setFormData((prev) => ({ ...prev, exhibitionPhotoIds: photos.map((p) => p.id) }));
+                }}
+                className="px-2.5 py-1 bg-[#e2e2e2] text-[#1a1c1c] hover:bg-[#dcdddd] rounded text-xs font-medium cursor-pointer"
+              >
+                🖼️ 전체 사진 선택
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setFormData((prev) => ({ ...prev, exhibitionPhotoIds: [] }));
+                }}
+                className="px-2.5 py-1 bg-[#f0f0f0] text-[#747878] hover:text-[#000000] rounded text-xs font-medium cursor-pointer"
+              >
+                ✕ 전체 선택 해제
+              </button>
+            </div>
+
+            <p className="text-xs text-[#747878]">
+              아래 갤러리 이미지에서 클릭하여 특별전 전시대상 작품을 추가/제외할 수 있습니다. (선택 해제 시 기본적으로 추천 작품이 전시됩니다)
+            </p>
+
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 max-h-56 overflow-y-auto p-2 bg-[#f3f3f4] rounded-xl border border-[#c4c7c7]">
+              {photos.map((photo) => {
+                const currentSelected = formData.exhibitionPhotoIds || [];
+                const isSelected = currentSelected.includes(photo.id);
+
+                const togglePhoto = () => {
+                  const nextSelected = isSelected
+                    ? currentSelected.filter((id) => id !== photo.id)
+                    : [...currentSelected, photo.id];
+                  setFormData((prev) => ({ ...prev, exhibitionPhotoIds: nextSelected }));
+                };
+
+                return (
+                  <div
+                    key={photo.id}
+                    onClick={togglePhoto}
+                    className={`relative aspect-square rounded-lg overflow-hidden cursor-pointer border-2 transition-all ${
+                      isSelected ? 'border-[#000000] ring-2 ring-amber-400' : 'border-transparent opacity-60 hover:opacity-100'
+                    }`}
+                  >
+                    <img src={photo.url} alt={photo.title} className="w-full h-full object-cover" />
+                    {isSelected && (
+                      <div className="absolute top-1 right-1 bg-[#000000] text-white rounded-full w-5 h-5 flex items-center justify-center">
+                        <span className="material-symbols-outlined text-xs">check</span>
+                      </div>
+                    )}
+                    <div className="absolute bottom-0 inset-x-0 bg-black/60 text-white text-[9px] px-1 py-0.5 truncate text-center">
+                      {photo.title}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
           {isUploading && (
             <div className="p-3 bg-amber-50 text-amber-800 text-xs rounded-lg flex items-center gap-2">
               <span className="material-symbols-outlined text-sm animate-spin">sync</span>

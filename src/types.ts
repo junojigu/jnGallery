@@ -39,6 +39,7 @@ export interface ExhibitionInfo {
   artistPhoto: string;
   artistQuote: string;
   artistNote: string;
+  exhibitionPhotoIds?: string[];
 }
 
 export interface HomeSettings {

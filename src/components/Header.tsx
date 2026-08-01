@@ -80,18 +80,23 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
           <button
             onClick={() => setActiveView('exhibition')}
-            className={`font-sans text-sm font-medium transition-colors cursor-pointer py-1 flex items-center gap-1.5 ${
+            title="온라인 특별전시 (소개 & 작가 노트)"
+            aria-label="온라인 특별전시"
+            className={`font-sans text-sm font-medium transition-all cursor-pointer py-1 px-2.5 rounded-full relative group flex items-center justify-center ${
               activeView === 'exhibition'
                 ? transparent
-                  ? 'border-b-2 border-white text-white font-semibold'
-                  : 'border-b-2 border-[#000000] text-[#000000] font-bold'
+                  ? 'bg-white/20 text-white font-semibold'
+                  : 'bg-[#000000] text-white font-bold'
                 : transparent
-                ? 'text-white/80 hover:text-white'
-                : 'text-[#444748] hover:text-[#000000]'
+                ? 'text-white/80 hover:text-white hover:bg-white/10'
+                : 'text-[#444748] hover:text-[#000000] hover:bg-[#eaeaea]'
             }`}
           >
-            <span className="material-symbols-outlined text-lg">auto_stories</span>
-            <span>소개 & 작가노트</span>
+            <span className="material-symbols-outlined text-xl">auto_stories</span>
+            {/* Tooltip on hover */}
+            <span className="absolute -bottom-9 left-1/2 -translate-x-1/2 px-2.5 py-1 bg-[#1a1c1c] text-white text-[11px] font-sans font-medium rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-md">
+              소개 & 작가 노트
+            </span>
           </button>
           {/* Categories tab ONLY visible for Admin */}
           {isAdmin && (
