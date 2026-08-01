@@ -104,6 +104,34 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
     }, 2500);
   };
 
+  const handleEnterFullscreen = () => {
+    setIsFullscreen(true);
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen?.().catch(() => {});
+    }
+  };
+
+  const handleExitFullscreen = () => {
+    setIsFullscreen(false);
+    if (document.fullscreenElement) {
+      document.exitFullscreen?.().catch(() => {});
+    }
+  };
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement) {
+        setIsFullscreen(false);
+      } else {
+        setIsFullscreen(true);
+      }
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
   useEffect(() => {
     if (!isFullscreen) {
       setIsZoomed(false);
@@ -123,15 +151,15 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
           e.preventDefault();
           setIsPlaying((prev) => !prev);
         }
-      } else if (e.key.toLowerCase() === 'f' && isFullscreen) {
+      } else if (e.key.toLowerCase() === 'f') {
         if (!document.fullscreenElement) {
-          document.documentElement.requestFullscreen?.().catch(() => {});
+          handleEnterFullscreen();
         } else {
-          document.exitFullscreen?.().catch(() => {});
+          handleExitFullscreen();
         }
       } else if (e.key === 'Escape') {
-        if (isFullscreen) {
-          setIsFullscreen(false);
+        if (isFullscreen || document.fullscreenElement) {
+          handleExitFullscreen();
         } else {
           onBack();
         }
@@ -244,6 +272,23 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
         </div>
 
         <div className="flex items-center gap-2.5">
+          {/* Toggle Description Panel Button */}
+          <button
+            onClick={() => setShowPanel(!showPanel)}
+            title={showPanel ? '설명 패널 닫기' : '설명 패널 열기'}
+            aria-label="Toggle Description Panel"
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer border ${
+              showPanel
+                ? 'bg-[#000000] text-white border-[#000000] shadow-xs'
+                : 'bg-white text-[#1a1c1c] border-[#c4c7c7] hover:border-[#000000]'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[18px]">
+              {showPanel ? 'dock_right' : 'info'}
+            </span>
+            <span className="hidden sm:inline">설명 패널</span>
+          </button>
+
           {/* Slideshow Play / Pause Button in Header */}
           <button
             onClick={() => setIsPlaying(!isPlaying)}
@@ -279,8 +324,8 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
 
           {/* Fullscreen Button */}
           <button
-            onClick={() => setIsFullscreen(true)}
-            title="전체 화면 극장 모드 (F)"
+            onClick={handleEnterFullscreen}
+            title="전체 화면으로 감상하기 (F / F11)"
             aria-label="Fullscreen view"
             className="w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center border border-[#c4c7c7] text-[#444748] hover:border-[#000000] hover:text-[#000000] transition-colors cursor-pointer"
           >
@@ -308,22 +353,6 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
 
       {/* Main Content Area */}
       <main className="flex-1 min-h-0 flex flex-col lg:flex-row w-full pl-4 md:pl-8 pr-0 gap-6 pb-3 transition-all relative overflow-hidden">
-        {/* Floating Side Toggle Button for Description Panel */}
-        <button
-          onClick={() => setShowPanel(!showPanel)}
-          title={showPanel ? '오른쪽 설명 패널 감추기' : '오른쪽 설명 패널 나타내기'}
-          aria-label={showPanel ? '설명 패널 감추기' : '설명 패널 보기'}
-          className={`fixed top-1/2 -translate-y-1/2 z-30 transition-all duration-300 cursor-pointer shadow-xl flex items-center justify-center border-y border-l rounded-l-2xl ${
-            showPanel
-              ? 'right-0 lg:right-[380px] bg-white/90 hover:bg-white text-[#1a1c1c] border-[#c4c7c7] p-3 hover:border-[#000000]'
-              : 'right-0 bg-[#000000] text-white border-[#000000] p-3 hover:bg-opacity-90 hover:scale-105'
-          }`}
-        >
-          <span className="material-symbols-outlined text-[20px]">
-            {showPanel ? 'chevron_right' : 'dock_to_left'}
-          </span>
-        </button>
-
         {/* Photo Viewer Container */}
         <div className="flex-1 min-h-0 min-w-0 h-full relative flex flex-col items-center justify-between transition-all">
           {/* Main Image Container */}
@@ -332,6 +361,18 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
             onTouchEnd={handleTouchEnd}
             className="relative group w-full flex-1 min-h-0 flex items-center justify-center p-2 select-none"
           >
+            {/* Top-Right Floating Panel Toggle when closed */}
+            {!showPanel && (
+              <button
+                onClick={() => setShowPanel(true)}
+                title="설명 패널 보기"
+                className="absolute top-3 right-3 md:top-4 md:right-4 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/90 hover:bg-white text-[#1a1c1c] backdrop-blur-md shadow-md border border-[#c4c7c7]/50 text-xs font-semibold cursor-pointer transition-all hover:scale-105"
+              >
+                <span className="material-symbols-outlined text-[18px]">info</span>
+                <span>설명 패널</span>
+              </button>
+            )}
+
             {/* Left Navigation Arrow */}
             <button
               onClick={handlePrev}
@@ -358,16 +399,6 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
               alt={photo.title}
               className="max-w-full max-h-full object-contain rounded-xl ambient-shadow shadow-2xl animate-smooth-fade pointer-events-none"
             />
-
-            {/* Fullscreen Overlay Toggle Button */}
-            <button
-              onClick={() => setIsFullscreen(true)}
-              aria-label="Toggle Fullscreen"
-              title="전체 화면으로 감상하기"
-              className="absolute bottom-4 right-4 w-10 h-10 rounded-full bg-white/90 backdrop-blur-md opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity flex items-center justify-center text-[#1a1c1c] hover:text-[#000000] shadow-sm cursor-pointer z-20"
-            >
-              <span className="material-symbols-outlined text-[20px]">fullscreen</span>
-            </button>
           </div>
 
           {/* Thumbnail Carousel (Hover at bottom area to reveal) */}
@@ -407,11 +438,21 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
         {/* Translucent Sidebar / Details Panel Docked Right */}
         {showPanel && (
           <aside className="w-full lg:w-[380px] flex-shrink-0 flex flex-col gap-5 py-6 px-6 bg-white/80 backdrop-blur-xl border-l border-y border-[#c4c7c7]/30 rounded-l-2xl shadow-xl h-full max-h-full overflow-y-auto animate-fadeIn z-20">
-            {/* Title & Description */}
+            {/* Title & Description with Close Button */}
             <div className="flex flex-col gap-3">
-              <h1 className="font-serif text-3xl font-bold text-[#000000] leading-tight">
-                {photo.title}
-              </h1>
+              <div className="flex items-start justify-between gap-2">
+                <h1 className="font-serif text-2xl lg:text-3xl font-bold text-[#000000] leading-tight">
+                  {photo.title}
+                </h1>
+                <button
+                  onClick={() => setShowPanel(false)}
+                  title="설명 패널 닫기"
+                  aria-label="Close panel"
+                  className="text-[#747878] hover:text-[#000000] p-1 rounded-lg hover:bg-[#e2e2e2]/60 transition-colors shrink-0 cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-xl">close</span>
+                </button>
+              </div>
               <p className="font-sans text-sm text-[#444748] leading-relaxed">
                 {photo.description}
               </p>
@@ -620,7 +661,7 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
 
               {/* Close Button */}
               <button
-                onClick={() => setIsFullscreen(false)}
+                onClick={handleExitFullscreen}
                 title="전체 화면 감상 종료 (Esc)"
                 aria-label="Close theater mode"
                 className="w-9 h-9 rounded-full bg-black/40 hover:bg-red-600/80 text-white backdrop-blur-xl border border-white/15 flex items-center justify-center transition-all cursor-pointer hover:scale-105 active:scale-95"
