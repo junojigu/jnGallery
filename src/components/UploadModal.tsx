@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Category, Tag, Photo } from '../types';
+import { extractExifFromFile, extractExifFromUrl } from '../utils/exif';
 
 interface UploadModalProps {
   isOpen: boolean;
@@ -32,6 +33,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
   const [featured, setFeatured] = useState(false);
   const [isUploadingCloudinary, setIsUploadingCloudinary] = useState(false);
   const [cloudinaryError, setCloudinaryError] = useState<string | null>(null);
+  const [exifNotice, setExifNotice] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
@@ -74,11 +76,58 @@ export const UploadModal: React.FC<UploadModalProps> = ({
     });
   };
 
+  const handleExtractExifFromUrl = async (targetUrl: string) => {
+    if (!targetUrl) return;
+    try {
+      setExifNotice('📸 URL 이미지에서 EXIF 메타데이터를 분석 중입니다...');
+      const extracted = await extractExifFromUrl(targetUrl);
+      let detectedItems: string[] = [];
+      if (extracted.camera) {
+        setCamera(extracted.camera);
+        detectedItems.push(`카메라: ${extracted.camera}`);
+      }
+      if (extracted.exif) {
+        setExif(extracted.exif);
+        detectedItems.push(`셔터/ISO: ${extracted.exif}`);
+      }
+      if (detectedItems.length > 0) {
+        setExifNotice(`✨ EXIF 메타데이터 자동 입력 완료! (${detectedItems.join(' | ')})`);
+      } else {
+        setExifNotice('ℹ️ 선택한 이미지에서 EXIF 메타데이터를 찾지 못했습니다. 직접 입력할 수 있습니다.');
+      }
+    } catch {
+      setExifNotice(null);
+    }
+  };
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setCloudinaryError(null);
+    setExifNotice('📸 선택한 이미지의 EXIF 메타데이터(카메라, 셔터/ISO)를 불러오는 중...');
+
+    // Extract EXIF data from local file immediately
+    try {
+      const extracted = await extractExifFromFile(file);
+      let detectedItems: string[] = [];
+      if (extracted.camera) {
+        setCamera(extracted.camera);
+        detectedItems.push(`카메라: ${extracted.camera}`);
+      }
+      if (extracted.exif) {
+        setExif(extracted.exif);
+        detectedItems.push(`셔터/ISO: ${extracted.exif}`);
+      }
+      if (detectedItems.length > 0) {
+        setExifNotice(`✨ EXIF 메타데이터 자동 입력 완료! (${detectedItems.join(' | ')})`);
+      } else {
+        setExifNotice('ℹ️ 선택한 사진에서 EXIF 메타데이터를 찾지 못했습니다. 직접 작성하실 수 있습니다.');
+      }
+    } catch (err) {
+      console.warn('EXIF read error:', err);
+      setExifNotice(null);
+    }
 
     // Check if Cloudinary is configured
     if (cloudinaryCloudName && cloudinaryUploadPreset) {
@@ -279,7 +328,10 @@ export const UploadModal: React.FC<UploadModalProps> = ({
                 <button
                   key={idx}
                   type="button"
-                  onClick={() => setImageUrl(sample.url)}
+                  onClick={() => {
+                    setImageUrl(sample.url);
+                    handleExtractExifFromUrl(sample.url);
+                  }}
                   className="text-[11px] bg-[#e2e2e2] text-[#1a1c1c] hover:bg-[#dcdddd] px-2 py-0.5 rounded cursor-pointer transition-colors"
                 >
                   {sample.label}
@@ -378,36 +430,56 @@ export const UploadModal: React.FC<UploadModalProps> = ({
           </div>
 
           {/* EXIF Metadata */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 border-t border-[#e2e2e2]">
-            <div>
-              <label className="block text-[11px] text-[#747878] mb-1">Location</label>
-              <input
-                type="text"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                placeholder="e.g. Northern Alps, AT"
-                className="w-full bg-[#f9f9f9] border border-[#c4c7c7] rounded px-2 py-1 text-xs text-[#000000]"
-              />
-            </div>
-            <div>
-              <label className="block text-[11px] text-[#747878] mb-1">Camera</label>
-              <input
-                type="text"
-                value={camera}
-                onChange={(e) => setCamera(e.target.value)}
-                placeholder="e.g. Sony A7R IV • 50mm"
-                className="w-full bg-[#f9f9f9] border border-[#c4c7c7] rounded px-2 py-1 text-xs text-[#000000]"
-              />
-            </div>
-            <div>
-              <label className="block text-[11px] text-[#747878] mb-1">Shutter / ISO</label>
-              <input
-                type="text"
-                value={exif}
-                onChange={(e) => setExif(e.target.value)}
-                placeholder="e.g. f/8 • 1/250s • ISO 100"
-                className="w-full bg-[#f9f9f9] border border-[#c4c7c7] rounded px-2 py-1 text-xs text-[#000000]"
-              />
+          <div className="pt-2 border-t border-[#e2e2e2]">
+            {exifNotice && (
+              <div className="mb-3 text-xs p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 font-medium flex items-center justify-between">
+                <span>{exifNotice}</span>
+                <button
+                  type="button"
+                  onClick={() => setExifNotice(null)}
+                  className="text-amber-700 hover:text-amber-950 font-bold ml-2 text-xs"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-[11px] text-[#747878] mb-1">Location (촬영 위치)</label>
+                <input
+                  type="text"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  placeholder="e.g. Northern Alps, AT"
+                  className="w-full bg-[#f9f9f9] border border-[#c4c7c7] rounded px-2 py-1 text-xs text-[#000000]"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] text-[#747878] mb-1 flex items-center justify-between">
+                  <span>Camera (카메라 모델)</span>
+                  <span className="text-[10px] text-amber-600 font-normal">EXIF 자동 감지</span>
+                </label>
+                <input
+                  type="text"
+                  value={camera}
+                  onChange={(e) => setCamera(e.target.value)}
+                  placeholder="e.g. Sony A7R IV • 50mm"
+                  className="w-full bg-[#f9f9f9] border border-[#c4c7c7] rounded px-2 py-1 text-xs text-[#000000] focus:border-amber-500"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] text-[#747878] mb-1 flex items-center justify-between">
+                  <span>Shutter / ISO (촬영 정보)</span>
+                  <span className="text-[10px] text-amber-600 font-normal">EXIF 자동 감지</span>
+                </label>
+                <input
+                  type="text"
+                  value={exif}
+                  onChange={(e) => setExif(e.target.value)}
+                  placeholder="e.g. f/8 • 1/250s • ISO 100"
+                  className="w-full bg-[#f9f9f9] border border-[#c4c7c7] rounded px-2 py-1 text-xs text-[#000000] focus:border-amber-500"
+                />
+              </div>
             </div>
           </div>
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Category, Tag, Photo } from '../types';
+import { extractExifFromFile, extractExifFromUrl } from '../utils/exif';
 
 type EditTarget = 
   | { type: 'category'; data: Category }
@@ -46,6 +47,67 @@ export const EditModal: React.FC<EditModalProps> = ({
   const [camera, setCamera] = useState('');
   const [exif, setExif] = useState('');
   const [featured, setFeatured] = useState(false);
+  const [exifNotice, setExifNotice] = useState<string | null>(null);
+
+  const handleEditFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setExifNotice('📸 선택한 새 파일에서 EXIF 메타데이터를 추출하는 중...');
+    
+    // Convert to data URL for preview/url
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (event.target?.result) {
+        setUrl(event.target.result as string);
+      }
+    };
+    reader.readAsDataURL(file);
+
+    try {
+      const extracted = await extractExifFromFile(file);
+      let detectedItems: string[] = [];
+      if (extracted.camera) {
+        setCamera(extracted.camera);
+        detectedItems.push(`카메라: ${extracted.camera}`);
+      }
+      if (extracted.exif) {
+        setExif(extracted.exif);
+        detectedItems.push(`셔터/ISO: ${extracted.exif}`);
+      }
+      if (detectedItems.length > 0) {
+        setExifNotice(`✨ EXIF 메타데이터 자동 추출 완료! (${detectedItems.join(' | ')})`);
+      } else {
+        setExifNotice('ℹ️ 파일에서 EXIF 메타데이터를 감지하지 못했습니다.');
+      }
+    } catch {
+      setExifNotice(null);
+    }
+  };
+
+  const handleReadExifFromCurrentUrl = async () => {
+    if (!url) return;
+    try {
+      setExifNotice('📸 현재 이미지 URL에서 EXIF 정보 분석 중...');
+      const extracted = await extractExifFromUrl(url);
+      let detectedItems: string[] = [];
+      if (extracted.camera) {
+        setCamera(extracted.camera);
+        detectedItems.push(`카메라: ${extracted.camera}`);
+      }
+      if (extracted.exif) {
+        setExif(extracted.exif);
+        detectedItems.push(`셔터/ISO: ${extracted.exif}`);
+      }
+      if (detectedItems.length > 0) {
+        setExifNotice(`✨ EXIF 메타데이터 추출 완료! (${detectedItems.join(' | ')})`);
+      } else {
+        setExifNotice('ℹ️ URL 이미지에서 EXIF 메타데이터를 감지하지 못했습니다.');
+      }
+    } catch {
+      setExifNotice('ℹ️ 외부 이미지 URL에서 EXIF 메타데이터를 읽을 수 없습니다.');
+    }
+  };
 
   useEffect(() => {
     if (!target) return;
@@ -473,36 +535,74 @@ export const EditModal: React.FC<EditModalProps> = ({
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 border-t border-[#e2e2e2]">
-                <div>
-                  <label className="block text-[11px] text-[#747878] mb-1">Location</label>
-                  <input
-                    type="text"
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                    placeholder="e.g. Northern Alps, AT"
-                    className="w-full bg-[#f9f9f9] border border-[#c4c7c7] rounded px-2 py-1 text-xs text-[#000000]"
-                  />
+              <div className="pt-2 border-t border-[#e2e2e2]">
+                {exifNotice && (
+                  <div className="mb-3 text-xs p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 font-medium flex items-center justify-between">
+                    <span>{exifNotice}</span>
+                    <button
+                      type="button"
+                      onClick={() => setExifNotice(null)}
+                      className="text-amber-700 hover:text-amber-950 font-bold ml-2 text-xs"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between mb-3 bg-[#f5f5f5] p-2.5 rounded-lg border border-[#e2e2e2]">
+                  <span className="text-xs text-[#444748] font-medium">📷 새 이미지 파일로 교체 또는 EXIF 재분석</span>
+                  <div className="flex items-center gap-2">
+                    <label className="px-2.5 py-1 bg-white border border-[#c4c7c7] text-[#1a1c1c] rounded text-xs cursor-pointer hover:bg-[#eaeaea]">
+                      파일 선택
+                      <input type="file" accept="image/*" onChange={handleEditFileChange} className="hidden" />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleReadExifFromCurrentUrl}
+                      className="px-2.5 py-1 bg-[#000000] text-white rounded text-xs cursor-pointer hover:opacity-90"
+                    >
+                      EXIF 읽기
+                    </button>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-[11px] text-[#747878] mb-1">Camera</label>
-                  <input
-                    type="text"
-                    value={camera}
-                    onChange={(e) => setCamera(e.target.value)}
-                    placeholder="e.g. Sony A7R IV • 50mm"
-                    className="w-full bg-[#f9f9f9] border border-[#c4c7c7] rounded px-2 py-1 text-xs text-[#000000]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] text-[#747878] mb-1">Shutter / ISO</label>
-                  <input
-                    type="text"
-                    value={exif}
-                    onChange={(e) => setExif(e.target.value)}
-                    placeholder="e.g. f/8 • 1/250s • ISO 100"
-                    className="w-full bg-[#f9f9f9] border border-[#c4c7c7] rounded px-2 py-1 text-xs text-[#000000]"
-                  />
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-[11px] text-[#747878] mb-1">Location (촬영 위치)</label>
+                    <input
+                      type="text"
+                      value={location}
+                      onChange={(e) => setLocation(e.target.value)}
+                      placeholder="e.g. Northern Alps, AT"
+                      className="w-full bg-[#f9f9f9] border border-[#c4c7c7] rounded px-2 py-1 text-xs text-[#000000]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] text-[#747878] mb-1 flex items-center justify-between">
+                      <span>Camera (카메라)</span>
+                      <span className="text-[10px] text-amber-600 font-normal">EXIF</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={camera}
+                      onChange={(e) => setCamera(e.target.value)}
+                      placeholder="e.g. Sony A7R IV • 50mm"
+                      className="w-full bg-[#f9f9f9] border border-[#c4c7c7] rounded px-2 py-1 text-xs text-[#000000] focus:border-amber-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] text-[#747878] mb-1 flex items-center justify-between">
+                      <span>Shutter / ISO</span>
+                      <span className="text-[10px] text-amber-600 font-normal">EXIF</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={exif}
+                      onChange={(e) => setExif(e.target.value)}
+                      placeholder="e.g. f/8 • 1/250s • ISO 100"
+                      className="w-full bg-[#f9f9f9] border border-[#c4c7c7] rounded px-2 py-1 text-xs text-[#000000] focus:border-amber-500"
+                    />
+                  </div>
                 </div>
               </div>
 
