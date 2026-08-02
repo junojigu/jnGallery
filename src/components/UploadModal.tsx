@@ -342,8 +342,8 @@ export const UploadModal: React.FC<UploadModalProps> = ({
 
               {/* Preview */}
               {imageUrl && (
-                <div className="mt-3 relative w-full h-40 rounded-lg overflow-hidden border border-[#c4c7c7] bg-[#f3f3f4]">
-                  <img src={imageUrl} alt="Preview" className="w-full h-full object-cover" />
+                <div className="mt-3 relative w-full h-52 sm:h-60 rounded-xl overflow-hidden border border-[#c4c7c7] bg-[#1a1c1e] flex items-center justify-center p-2 shadow-inner">
+                  <img src={imageUrl} alt="Preview" className="max-w-full max-h-full w-auto h-auto object-contain rounded-md shadow-sm" />
                 </div>
               )}
             </div>
