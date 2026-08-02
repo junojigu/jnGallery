@@ -419,74 +419,74 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
 
         {/* Glassmorphism Floating Overlay Details Panel (Overlay on right side without shrinking photo) */}
         {showPanel && (
-          <aside className="absolute right-4 md:right-8 top-2 bottom-16 w-[calc(100%-32px)] sm:w-[360px] md:w-[380px] z-30 flex flex-col gap-5 p-6 bg-white/80 backdrop-blur-2xl border border-white/70 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.2)] text-[#1a1c1c] overflow-y-auto animate-fadeIn max-h-[calc(100%-70px)]">
+          <aside className="absolute right-4 md:right-8 top-2 bottom-16 w-[calc(100%-32px)] sm:w-[360px] md:w-[380px] z-30 flex flex-col gap-5 p-6 bg-white/20 backdrop-blur-md backdrop-saturate-150 border border-white/50 rounded-2xl shadow-[0_16px_40px_rgba(0,0,0,0.3)] text-[#1a1c1c] overflow-y-auto animate-fadeIn max-h-[calc(100%-70px)]">
             {/* Title & Description with Close Button */}
             <div className="flex flex-col gap-3">
               <div className="flex items-start justify-between gap-2">
-                <h1 className="font-serif text-2xl lg:text-3xl font-bold text-[#000000] leading-tight">
+                <h1 className="font-serif text-2xl lg:text-3xl font-bold text-[#000000] leading-tight drop-shadow-xs">
                   {photo.title}
                 </h1>
                 <button
                   onClick={() => setShowPanel(false)}
                   title="설명 패널 닫기"
                   aria-label="Close panel"
-                  className="text-[#747878] hover:text-[#000000] p-1.5 rounded-full hover:bg-black/5 transition-colors shrink-0 cursor-pointer flex items-center justify-center"
+                  className="text-[#444748] hover:text-[#000000] p-1.5 rounded-full hover:bg-white/50 transition-colors shrink-0 cursor-pointer flex items-center justify-center border border-transparent hover:border-white/60"
                 >
                   <span className="material-symbols-outlined text-xl">close</span>
                 </button>
               </div>
-              <p className="font-sans text-sm text-[#333738] leading-relaxed">
+              <p className="font-sans text-sm text-[#1a1c1c] leading-relaxed font-medium">
                 {photo.description}
               </p>
             </div>
 
-            <hr className="border-t border-black/10 w-full" />
+            <hr className="border-t border-black/15 w-full" />
 
             {/* Metadata / EXIF */}
             <div className="flex flex-col gap-3">
-              <h2 className="font-sans text-xs font-bold text-[#000000] uppercase tracking-wider opacity-70">
+              <h2 className="font-sans text-xs font-bold text-[#000000] uppercase tracking-wider opacity-80">
                 Details
               </h2>
-              <ul className="flex flex-col gap-2.5 text-xs text-[#333738]">
+              <ul className="flex flex-col gap-2.5 text-xs text-[#1a1c1c] font-medium">
                 {photo.date && (
                   <li className="flex items-center gap-3">
-                    <span className="material-symbols-outlined text-[18px] opacity-70">calendar_today</span>
+                    <span className="material-symbols-outlined text-[18px] opacity-80">calendar_today</span>
                     <span>{photo.date}</span>
                   </li>
                 )}
                 {photo.location && (
                   <li className="flex items-center gap-3">
-                    <span className="material-symbols-outlined text-[18px] opacity-70">location_on</span>
+                    <span className="material-symbols-outlined text-[18px] opacity-80">location_on</span>
                     <span>{photo.location}</span>
                   </li>
                 )}
                 {photo.camera && (
                   <li className="flex items-center gap-3">
-                    <span className="material-symbols-outlined text-[18px] opacity-70">camera</span>
+                    <span className="material-symbols-outlined text-[18px] opacity-80">camera</span>
                     <span>{photo.camera}</span>
                   </li>
                 )}
                 {photo.exif && (
                   <li className="flex items-center gap-3">
-                    <span className="material-symbols-outlined text-[18px] opacity-70">shutter_speed</span>
+                    <span className="material-symbols-outlined text-[18px] opacity-80">shutter_speed</span>
                     <span>{photo.exif}</span>
                   </li>
                 )}
               </ul>
             </div>
 
-            <hr className="border-t border-black/10 w-full" />
+            <hr className="border-t border-black/15 w-full" />
 
             {/* Tags */}
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between">
-                <h2 className="font-sans text-xs font-bold text-[#000000] uppercase tracking-wider opacity-70">
+                <h2 className="font-sans text-xs font-bold text-[#000000] uppercase tracking-wider opacity-80">
                   Tags
                 </h2>
                 {internalTagFilter && (
                   <button
                     onClick={() => setInternalTagFilter(null)}
-                    className="text-[11px] text-[#747878] hover:text-[#000000] underline cursor-pointer"
+                    className="text-[11px] text-[#444748] hover:text-[#000000] underline cursor-pointer font-semibold"
                   >
                     태그 필터 해제
                   </button>
@@ -507,10 +507,10 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
                         }
                       }}
                       title={`'${normTag}' 태그 모아보기`}
-                      className={`px-3.5 py-1.5 rounded-full text-xs font-medium cursor-pointer transition-all border ${
+                      className={`px-3.5 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-all border ${
                         isSelected
                           ? 'bg-[#000000] text-white border-[#000000] shadow-sm'
-                          : 'bg-white/60 text-[#333738] border-black/10 hover:bg-white hover:border-black/20'
+                          : 'bg-white/50 text-[#1a1c1c] border-white/60 hover:bg-white/80 hover:border-white/90'
                       }`}
                     >
                       {t.startsWith('#') ? t : `#${t}`}
@@ -524,7 +524,7 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
             <div className="pt-2 mt-auto">
               <button
                 onClick={handleDownload}
-                className="w-full py-3 rounded-xl bg-[#000000] text-white font-sans text-xs uppercase tracking-wider font-semibold flex items-center justify-center gap-2 hover:bg-opacity-90 transition-all cursor-pointer shadow-md"
+                className="w-full py-3 rounded-xl bg-[#000000] text-white font-sans text-xs uppercase tracking-wider font-semibold flex items-center justify-center gap-2 hover:bg-neutral-800 transition-all cursor-pointer shadow-lg"
               >
                 <span className="material-symbols-outlined text-[18px]">download</span>
                 Download Original
