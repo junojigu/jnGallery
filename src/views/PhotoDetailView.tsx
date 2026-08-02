@@ -308,17 +308,15 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
           {/* 2. Toggle Description Panel Button */}
           <button
             onClick={() => setShowPanel(!showPanel)}
-            title="사진 설명"
+            title={showPanel ? "사진 설명 닫기" : "사진 설명 보기"}
             aria-label="사진 설명"
             className={`w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center transition-all cursor-pointer border ${
               showPanel
-                ? 'bg-[#000000] text-white border-[#000000] shadow-xs'
-                : 'bg-white text-[#747878] border-[#c4c7c7]/60 hover:border-[#000000] hover:text-[#000000]'
+                ? 'bg-[#000000] text-white border-[#000000] shadow-sm'
+                : 'bg-white text-[#444748] border-[#c4c7c7] hover:border-[#000000] hover:text-[#000000]'
             }`}
           >
-            <span className="material-symbols-outlined text-[20px]">
-              {showPanel ? 'dock_right' : 'info'}
-            </span>
+            <span className="material-symbols-outlined text-[20px]">info</span>
           </button>
 
           {/* 3. Fullscreen Button */}
@@ -354,9 +352,9 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 min-h-0 flex flex-col lg:flex-row w-full pl-4 md:pl-8 pr-0 gap-6 pb-3 transition-all relative overflow-hidden">
-        {/* Photo Viewer Container */}
-        <div className="flex-1 min-h-0 min-w-0 h-full relative flex flex-col items-center justify-between transition-all">
+      <main className="flex-1 min-h-0 w-full px-4 md:px-8 pb-3 transition-all relative overflow-hidden flex flex-col items-center justify-between">
+        {/* Photo Viewer Container (Maintained full-size & centered) */}
+        <div className="w-full h-full min-h-0 min-w-0 relative flex flex-col items-center justify-between transition-all">
           {/* Main Image Container */}
           <div
             onTouchStart={handleTouchStart}
@@ -419,9 +417,9 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
           </div>
         </div>
 
-        {/* Translucent Sidebar / Details Panel Docked Right */}
+        {/* Glassmorphism Floating Overlay Details Panel (Overlay on right side without shrinking photo) */}
         {showPanel && (
-          <aside className="w-full lg:w-[380px] flex-shrink-0 flex flex-col gap-5 py-6 px-6 bg-white/80 backdrop-blur-xl border-l border-y border-[#c4c7c7]/30 rounded-l-2xl shadow-xl h-full max-h-full overflow-y-auto animate-fadeIn z-20">
+          <aside className="absolute right-4 md:right-8 top-2 bottom-16 w-[calc(100%-32px)] sm:w-[360px] md:w-[380px] z-30 flex flex-col gap-5 p-6 bg-white/80 backdrop-blur-2xl border border-white/70 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.2)] text-[#1a1c1c] overflow-y-auto animate-fadeIn max-h-[calc(100%-70px)]">
             {/* Title & Description with Close Button */}
             <div className="flex flex-col gap-3">
               <div className="flex items-start justify-between gap-2">
@@ -432,57 +430,57 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
                   onClick={() => setShowPanel(false)}
                   title="설명 패널 닫기"
                   aria-label="Close panel"
-                  className="text-[#747878] hover:text-[#000000] p-1 rounded-lg hover:bg-[#e2e2e2]/60 transition-colors shrink-0 cursor-pointer"
+                  className="text-[#747878] hover:text-[#000000] p-1.5 rounded-full hover:bg-black/5 transition-colors shrink-0 cursor-pointer flex items-center justify-center"
                 >
                   <span className="material-symbols-outlined text-xl">close</span>
                 </button>
               </div>
-              <p className="font-sans text-sm text-[#444748] leading-relaxed">
+              <p className="font-sans text-sm text-[#333738] leading-relaxed">
                 {photo.description}
               </p>
             </div>
 
-            <hr className="border-t border-[#e2e2e2]/80 w-full" />
+            <hr className="border-t border-black/10 w-full" />
 
             {/* Metadata / EXIF */}
             <div className="flex flex-col gap-3">
-              <h2 className="font-sans text-sm font-semibold text-[#000000] uppercase tracking-wider">
+              <h2 className="font-sans text-xs font-bold text-[#000000] uppercase tracking-wider opacity-70">
                 Details
               </h2>
-              <ul className="flex flex-col gap-2.5 text-xs text-[#444748]">
+              <ul className="flex flex-col gap-2.5 text-xs text-[#333738]">
                 {photo.date && (
                   <li className="flex items-center gap-3">
-                    <span className="material-symbols-outlined text-[18px]">calendar_today</span>
+                    <span className="material-symbols-outlined text-[18px] opacity-70">calendar_today</span>
                     <span>{photo.date}</span>
                   </li>
                 )}
                 {photo.location && (
                   <li className="flex items-center gap-3">
-                    <span className="material-symbols-outlined text-[18px]">location_on</span>
+                    <span className="material-symbols-outlined text-[18px] opacity-70">location_on</span>
                     <span>{photo.location}</span>
                   </li>
                 )}
                 {photo.camera && (
                   <li className="flex items-center gap-3">
-                    <span className="material-symbols-outlined text-[18px]">camera</span>
+                    <span className="material-symbols-outlined text-[18px] opacity-70">camera</span>
                     <span>{photo.camera}</span>
                   </li>
                 )}
                 {photo.exif && (
                   <li className="flex items-center gap-3">
-                    <span className="material-symbols-outlined text-[18px]">shutter_speed</span>
+                    <span className="material-symbols-outlined text-[18px] opacity-70">shutter_speed</span>
                     <span>{photo.exif}</span>
                   </li>
                 )}
               </ul>
             </div>
 
-            <hr className="border-t border-[#e2e2e2]/80 w-full" />
+            <hr className="border-t border-black/10 w-full" />
 
             {/* Tags */}
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between">
-                <h2 className="font-sans text-sm font-semibold text-[#000000] uppercase tracking-wider">
+                <h2 className="font-sans text-xs font-bold text-[#000000] uppercase tracking-wider opacity-70">
                   Tags
                 </h2>
                 {internalTagFilter && (
@@ -512,7 +510,7 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
                       className={`px-3.5 py-1.5 rounded-full text-xs font-medium cursor-pointer transition-all border ${
                         isSelected
                           ? 'bg-[#000000] text-white border-[#000000] shadow-sm'
-                          : 'bg-[#f3f3f4]/90 text-[#444748] border-transparent hover:bg-[#e2e2e2]'
+                          : 'bg-white/60 text-[#333738] border-black/10 hover:bg-white hover:border-black/20'
                       }`}
                     >
                       {t.startsWith('#') ? t : `#${t}`}
@@ -523,10 +521,10 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
             </div>
 
             {/* Download Action */}
-            <div className="pt-2">
+            <div className="pt-2 mt-auto">
               <button
                 onClick={handleDownload}
-                className="w-full py-3.5 rounded-lg bg-[#000000] text-white font-sans text-xs uppercase tracking-wider font-semibold flex items-center justify-center gap-2 hover:bg-opacity-90 transition-colors cursor-pointer shadow-xs"
+                className="w-full py-3 rounded-xl bg-[#000000] text-white font-sans text-xs uppercase tracking-wider font-semibold flex items-center justify-center gap-2 hover:bg-opacity-90 transition-all cursor-pointer shadow-md"
               >
                 <span className="material-symbols-outlined text-[18px]">download</span>
                 Download Original
