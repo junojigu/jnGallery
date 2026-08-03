@@ -104,18 +104,6 @@ export const ExhibitionView: React.FC<ExhibitionViewProps> = ({
           </div>
 
           <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-            <button
-              onClick={() => setActiveTab('archive')}
-              className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 border ${
-                activeTab === 'archive'
-                  ? 'bg-[#000000] text-white border-[#000000]'
-                  : 'bg-[#f0f0f2] text-[#1a1c1c] border-[#c4c7c7] hover:bg-[#e2e2e2]'
-              }`}
-            >
-              <span className="material-symbols-outlined text-sm">inventory_2</span>
-              <span>전체 전시 아카이브 ({exhibitions.length})</span>
-            </button>
-
             {isAdmin && onOpenEditModal && (
               <button
                 onClick={onOpenEditModal}
@@ -222,7 +210,7 @@ export const ExhibitionView: React.FC<ExhibitionViewProps> = ({
               }`}
             >
               <span className="material-symbols-outlined text-lg">folder_open</span>
-              <span>전시 아카이브</span>
+              <span>전시 아카이브 ({exhibitions.length})</span>
             </button>
           </div>
         </div>
@@ -517,7 +505,12 @@ export const ExhibitionView: React.FC<ExhibitionViewProps> = ({
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {exhibitions.map((ex) => {
-                const exPhotoCount = ex.exhibitionPhotoIds?.length || 0;
+                const selectedIds = ex.exhibitionPhotoIds || [];
+                const exPhotoCount = selectedIds.length > 0
+                  ? photos.filter((p) => selectedIds.includes(p.id)).length
+                  : photos.filter((p) => p.featured).length > 0
+                  ? photos.filter((p) => p.featured).length
+                  : photos.length;
                 const isSelected = ex.id === currentExhibition.id;
                 const isActiveMain = ex.id === activeExhibitionId;
 
@@ -592,7 +585,7 @@ export const ExhibitionView: React.FC<ExhibitionViewProps> = ({
                     {/* Footer Actions */}
                     <div className="p-4 bg-[#f9f9f9] border-t border-[#f0f0f0] flex items-center justify-between">
                       <span className="text-xs text-[#747878] font-medium">
-                        작품 <strong className="text-[#000000]">{exPhotoCount}</strong>점 연동
+                        작품수: <strong className="text-[#000000]">{exPhotoCount}점</strong>
                       </span>
 
                       <button
