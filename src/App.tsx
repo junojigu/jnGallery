@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Category, Tag, Photo, ActiveView, HomeSettings, ExhibitionInfo } from './types';
-import { INITIAL_CATEGORIES, INITIAL_TAGS, INITIAL_PHOTOS, INITIAL_HOME_SETTINGS, INITIAL_EXHIBITION_INFO } from './initialData';
+import { Category, Tag, Photo, ActiveView, HomeSettings, ExhibitionInfo, Exhibition } from './types';
+import { INITIAL_CATEGORIES, INITIAL_TAGS, INITIAL_PHOTOS, INITIAL_HOME_SETTINGS, INITIAL_EXHIBITION_INFO, INITIAL_EXHIBITIONS } from './initialData';
 
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
@@ -197,13 +197,31 @@ export default function App() {
     }
   });
 
-  const [exhibitionInfo, setExhibitionInfo] = useState<ExhibitionInfo>(() => {
+  const [exhibitions, setExhibitions] = useState<Exhibition[]>(() => {
     try {
-      const saved = localStorage.getItem('pm_exhibition_info');
-      return saved ? JSON.parse(saved) : INITIAL_EXHIBITION_INFO;
+      const saved = localStorage.getItem('pm_exhibitions');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      return INITIAL_EXHIBITIONS;
     } catch {
-      return INITIAL_EXHIBITION_INFO;
+      return INITIAL_EXHIBITIONS;
     }
+  });
+
+  const [activeExhibitionId, setActiveExhibitionId] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem('pm_active_exhibition_id');
+      return saved || INITIAL_EXHIBITIONS[0]?.id || 'exhibition-1';
+    } catch {
+      return INITIAL_EXHIBITIONS[0]?.id || 'exhibition-1';
+    }
+  });
+
+  const [exhibitionInfo, setExhibitionInfo] = useState<ExhibitionInfo>(() => {
+    const found = exhibitions.find((e) => e.id === activeExhibitionId);
+    return found || INITIAL_EXHIBITION_INFO;
   });
 
   const [isHomeEditOpen, setIsHomeEditOpen] = useState(false);
@@ -300,10 +318,17 @@ export default function App() {
               return updated;
             });
           }
-          if (data.exhibitionInfo && typeof data.exhibitionInfo === 'object') {
-            setExhibitionInfo((prev) => {
-              const updated = { ...prev, ...data.exhibitionInfo };
-              try { localStorage.setItem('pm_exhibition_info', JSON.stringify(updated)); } catch {}
+          if (Array.isArray(data.exhibitions) && data.exhibitions.length > 0) {
+            setExhibitions(data.exhibitions);
+            try { localStorage.setItem('pm_exhibitions', JSON.stringify(data.exhibitions)); } catch {}
+            if (data.activeExhibitionId) {
+              setActiveExhibitionId(data.activeExhibitionId);
+              try { localStorage.setItem('pm_active_exhibition_id', data.activeExhibitionId); } catch {}
+            }
+          } else if (data.exhibitionInfo && typeof data.exhibitionInfo === 'object') {
+            setExhibitions((prev) => {
+              const updated = prev.map((ex) => (ex.id === activeExhibitionId ? { ...ex, ...data.exhibitionInfo } : ex));
+              try { localStorage.setItem('pm_exhibitions', JSON.stringify(updated)); } catch {}
               return updated;
             });
           }
@@ -340,12 +365,18 @@ export default function App() {
         categoryId: p.categoryId,
       }));
 
+      const targetExhibitions = payloadOverride?.exhibitions || exhibitions;
+      const targetActiveExId = payloadOverride?.activeExhibitionId || activeExhibitionId;
+      const activeExInfo = targetExhibitions.find((e: Exhibition) => e.id === targetActiveExId) || targetExhibitions[0];
+
       const payload = {
         action: 'syncAll',
         categories: targetCategories,
         tags: payloadOverride?.tags || tags,
         homeSettings: payloadOverride?.homeSettings || homeSettings,
-        exhibitionInfo: payloadOverride?.exhibitionInfo || exhibitionInfo,
+        exhibitions: targetExhibitions,
+        activeExhibitionId: targetActiveExId,
+        exhibitionInfo: payloadOverride?.exhibitionInfo || activeExInfo,
         updatedAt: new Date().toISOString(),
         ...payloadOverride,
         photos: photosForSync,
@@ -447,6 +478,77 @@ export default function App() {
       // ignore
     }
   }, [exhibitionInfo]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('pm_exhibitions', JSON.stringify(exhibitions));
+    } catch {
+      // ignore
+    }
+  }, [exhibitions]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('pm_active_exhibition_id', activeExhibitionId);
+    } catch {
+      // ignore
+    }
+  }, [activeExhibitionId]);
+
+  const handleSaveExhibition = (newExhibition: Exhibition) => {
+    requireAdmin(() => {
+      let updatedExhibitions: Exhibition[];
+      const exists = exhibitions.some((e) => e.id === newExhibition.id);
+      if (exists) {
+        updatedExhibitions = exhibitions.map((e) => (e.id === newExhibition.id ? newExhibition : e));
+      } else {
+        updatedExhibitions = [...exhibitions, newExhibition];
+      }
+      setExhibitions(updatedExhibitions);
+
+      syncToGoogleSheet({
+        action: 'saveExhibition',
+        exhibitions: updatedExhibitions,
+        activeExhibitionId,
+        exhibitionInfo: updatedExhibitions.find((e) => e.id === activeExhibitionId) || updatedExhibitions[0],
+      });
+    }, '전시 관리는 관리자 로그인 후 가능합니다.');
+  };
+
+  const handleDeleteExhibition = (exhibitionId: string) => {
+    requireAdmin(() => {
+      if (exhibitions.length <= 1) {
+        alert('최소 하나의 전시는 남아있어야 합니다.');
+        return;
+      }
+      const updated = exhibitions.filter((e) => e.id !== exhibitionId);
+      setExhibitions(updated);
+      let nextActiveId = activeExhibitionId;
+      if (activeExhibitionId === exhibitionId) {
+        nextActiveId = updated[0].id;
+        setActiveExhibitionId(nextActiveId);
+      }
+      syncToGoogleSheet({
+        action: 'deleteExhibition',
+        exhibitions: updated,
+        activeExhibitionId: nextActiveId,
+        exhibitionInfo: updated.find((e) => e.id === nextActiveId) || updated[0],
+      });
+    }, '전시 삭제는 관리자 로그인 후 가능합니다.');
+  };
+
+  const handleSetActiveExhibition = (exhibitionId: string) => {
+    requireAdmin(() => {
+      setActiveExhibitionId(exhibitionId);
+      const activeEx = exhibitions.find((e) => e.id === exhibitionId) || exhibitions[0];
+      syncToGoogleSheet({
+        action: 'setActiveExhibition',
+        exhibitions,
+        activeExhibitionId: exhibitionId,
+        exhibitionInfo: activeEx,
+      });
+    }, '대표 전시 설정은 관리자 로그인 후 가능합니다.');
+  };
 
   useEffect(() => {
     try {
@@ -817,12 +919,14 @@ export default function App() {
 
         {activeView === 'exhibition' && (
           <ExhibitionView
-            exhibitionInfo={exhibitionInfo}
+            exhibitions={exhibitions}
+            activeExhibitionId={activeExhibitionId}
             photos={photos}
             isAdmin={isAdmin}
             onOpenEditModal={() => setIsExhibitionEditOpen(true)}
             onGoToGallery={() => setActiveView('gallery')}
             onViewPhoto={handleViewPhotoDetail}
+            onSetActiveExhibition={handleSetActiveExhibition}
           />
         )}
 
@@ -911,11 +1015,11 @@ export default function App() {
       <ExhibitionEditModal
         isOpen={isExhibitionEditOpen}
         onClose={() => setIsExhibitionEditOpen(false)}
-        exhibitionInfo={exhibitionInfo}
-        onSave={(newInfo) => {
-          setExhibitionInfo(newInfo);
-          syncToGoogleSheet({ exhibitionInfo: newInfo });
-        }}
+        exhibitions={exhibitions}
+        activeExhibitionId={activeExhibitionId}
+        onSaveExhibition={handleSaveExhibition}
+        onDeleteExhibition={handleDeleteExhibition}
+        onSetActiveExhibition={handleSetActiveExhibition}
         photos={photos}
         homeSettings={homeSettings}
       />

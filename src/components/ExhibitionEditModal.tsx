@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { ExhibitionInfo, Photo, HomeSettings } from '../types';
+import { Exhibition, Photo, HomeSettings } from '../types';
 import { INITIAL_EXHIBITION_INFO } from '../initialData';
 
 interface ExhibitionEditModalProps {
   isOpen: boolean;
   onClose: () => void;
-  exhibitionInfo: ExhibitionInfo;
-  onSave: (newInfo: ExhibitionInfo) => void;
+  exhibitions: Exhibition[];
+  activeExhibitionId: string;
+  onSaveExhibition: (exhibition: Exhibition) => void;
+  onDeleteExhibition?: (exhibitionId: string) => void;
+  onSetActiveExhibition?: (exhibitionId: string) => void;
   photos: Photo[];
   homeSettings: HomeSettings;
 }
@@ -14,12 +17,28 @@ interface ExhibitionEditModalProps {
 export const ExhibitionEditModal: React.FC<ExhibitionEditModalProps> = ({
   isOpen,
   onClose,
-  exhibitionInfo,
-  onSave,
+  exhibitions,
+  activeExhibitionId,
+  onSaveExhibition,
+  onDeleteExhibition,
+  onSetActiveExhibition,
   photos,
   homeSettings,
 }) => {
-  const [formData, setFormData] = useState<ExhibitionInfo>(exhibitionInfo);
+  const [selectedExhibitionId, setSelectedExhibitionId] = useState<string>(
+    activeExhibitionId || exhibitions[0]?.id || 'exhibition-1'
+  );
+  const [formData, setFormData] = useState<Exhibition>(() => {
+    const found = exhibitions.find((e) => e.id === selectedExhibitionId);
+    return (
+      found || {
+        ...INITIAL_EXHIBITION_INFO,
+        id: `exhibition-${Date.now()}`,
+        status: 'active',
+      }
+    );
+  });
+
   const [photoPickerTarget, setPhotoPickerTarget] = useState<'introImage' | 'artistPhoto' | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -29,6 +48,40 @@ export const ExhibitionEditModal: React.FC<ExhibitionEditModalProps> = ({
   const [isTagSearchOpen, setIsTagSearchOpen] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+
+  // When selectedExhibitionId or exhibitions list changes, sync formData
+  useEffect(() => {
+    const target = exhibitions.find((e) => e.id === selectedExhibitionId);
+    if (target) {
+      setFormData(target);
+    } else if (exhibitions.length > 0) {
+      setSelectedExhibitionId(exhibitions[0].id);
+      setFormData(exhibitions[0]);
+    }
+  }, [selectedExhibitionId, exhibitions, isOpen]);
+
+  // Handle creating a brand new exhibition
+  const handleAddNewExhibition = () => {
+    const newId = `exhibition-${Date.now()}`;
+    const newExhibition: Exhibition = {
+      id: newId,
+      title: '새로운 기획 전시',
+      subtitle: '전시 부제를 입력하세요',
+      period: '2026.00.00 - 진행 중',
+      status: 'past',
+      introImage: photos[0]?.url || INITIAL_EXHIBITION_INFO.introImage,
+      introText: '새로운 기획 전시 소개글입니다.',
+      artistName: exhibitions[0]?.artistName || 'Juno',
+      artistRole: exhibitions[0]?.artistRole || 'Photographer',
+      artistPhoto: exhibitions[0]?.artistPhoto || '',
+      artistQuote: '사진은 정지된 시간 속 기억의 자국입니다.',
+      artistNote: '작가 노트를 적어주세요.',
+      exhibitionPhotoIds: [],
+      createdAt: new Date().toISOString().split('T')[0],
+    };
+    setSelectedExhibitionId(newId);
+    setFormData(newExhibition);
+  };
 
   // Collect all unique tags and categories from photos
   const allUniqueTags = React.useMemo(() => {
@@ -53,10 +106,12 @@ export const ExhibitionEditModal: React.FC<ExhibitionEditModalProps> = ({
       const matchTitle = p.title.toLowerCase().includes(term);
       const matchCategory = p.category?.toLowerCase().includes(term);
       const matchLocation = p.location?.toLowerCase().includes(term);
-      const matchTags = Array.isArray(p.tags) && p.tags.some((t) => {
-        const tagName = typeof t === 'string' ? t : (t as any)?.name || '';
-        return tagName.toLowerCase().includes(term);
-      });
+      const matchTags =
+        Array.isArray(p.tags) &&
+        p.tags.some((t) => {
+          const tagName = typeof t === 'string' ? t : (t as any)?.name || '';
+          return tagName.toLowerCase().includes(term);
+        });
       return matchTitle || matchCategory || matchLocation || matchTags;
     });
   }, [photos, searchTagFilter]);
@@ -98,26 +153,16 @@ export const ExhibitionEditModal: React.FC<ExhibitionEditModalProps> = ({
     setDragOverIndex(null);
   };
 
-  useEffect(() => {
-    setFormData(exhibitionInfo);
-  }, [exhibitionInfo, isOpen]);
-
   if (!isOpen) return null;
 
-  const handleChange = (field: keyof ExhibitionInfo, value: string) => {
+  const handleChange = (field: keyof Exhibition, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(formData);
+    onSaveExhibition(formData);
     onClose();
-  };
-
-  const handleReset = () => {
-    if (window.confirm('전시 소개 및 작가 노트를 기본값으로 복원하시겠습니까?')) {
-      setFormData(INITIAL_EXHIBITION_INFO);
-    }
   };
 
   const handleSelectPhotoForTarget = (photoUrl: string) => {
@@ -127,8 +172,10 @@ export const ExhibitionEditModal: React.FC<ExhibitionEditModalProps> = ({
     }
   };
 
-  // Direct Cloudinary upload for Intro Image or Artist Photo
-  const handleCloudinaryUpload = async (e: React.ChangeEvent<HTMLInputElement>, targetField: 'introImage' | 'artistPhoto') => {
+  const handleCloudinaryUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    targetField: 'introImage' | 'artistPhoto'
+  ) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -170,12 +217,15 @@ export const ExhibitionEditModal: React.FC<ExhibitionEditModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fadeIn">
-      <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-[#c4c7c7]/30 overflow-hidden">
+      <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-[#c4c7c7]/30 overflow-hidden">
         {/* Header */}
         <div className="flex justify-between items-center px-6 py-4 border-b border-[#c4c7c7]/30 bg-[#f9f9f9]">
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[#000000]">edit_note</span>
-            <h2 className="font-serif text-xl font-bold text-[#000000]">사진전 소개 & 작가 노트 편집</h2>
+            <span className="material-symbols-outlined text-[#000000]">collections_bookmark</span>
+            <div>
+              <h2 className="font-serif text-xl font-bold text-[#000000]">전시 관리 및 작가 노트 편집</h2>
+              <p className="text-xs text-[#747878]">여러 개의 전시를 개설하고 아카이빙할 수 있습니다.</p>
+            </div>
           </div>
           <button
             onClick={onClose}
@@ -185,19 +235,101 @@ export const ExhibitionEditModal: React.FC<ExhibitionEditModalProps> = ({
           </button>
         </div>
 
+        {/* Exhibition Switcher & Add New Bar */}
+        <div className="bg-[#f0f0f2] px-6 py-3 border-b border-[#c4c7c7]/40 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2 flex-1 min-w-[280px]">
+            <span className="text-xs font-semibold text-[#444748] shrink-0">편집할 전시:</span>
+            <select
+              value={formData.id}
+              onChange={(e) => {
+                const target = exhibitions.find((ex) => ex.id === e.target.value);
+                if (target) {
+                  setSelectedExhibitionId(target.id);
+                  setFormData(target);
+                }
+              }}
+              className="px-3 py-1.5 text-xs font-semibold bg-white border border-[#c4c7c7] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#000000] flex-1 cursor-pointer"
+            >
+              {exhibitions.map((ex) => (
+                <option key={ex.id} value={ex.id}>
+                  {ex.id === activeExhibitionId ? '★ [대표/진행중] ' : ''}{ex.title} ({ex.period || '기간미정'})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {onSetActiveExhibition && (
+              <button
+                type="button"
+                onClick={() => onSetActiveExhibition(formData.id)}
+                disabled={formData.id === activeExhibitionId}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1 border ${
+                  formData.id === activeExhibitionId
+                    ? 'bg-amber-100 text-amber-900 border-amber-300 opacity-90 cursor-default'
+                    : 'bg-white text-[#1a1c1c] border-[#c4c7c7] hover:border-[#000000]'
+                }`}
+              >
+                <span className="material-symbols-outlined text-sm text-amber-600">
+                  {formData.id === activeExhibitionId ? 'verified' : 'star'}
+                </span>
+                <span>{formData.id === activeExhibitionId ? '현재 대표 전시' : '대표 전시로 설정'}</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={handleAddNewExhibition}
+              className="px-3 py-1.5 bg-[#000000] text-white rounded-lg text-xs font-semibold hover:bg-opacity-80 transition-all cursor-pointer flex items-center gap-1 shadow-xs"
+            >
+              <span className="material-symbols-outlined text-sm">add</span>
+              <span>+ 새 전시 개설</span>
+            </button>
+
+            {onDeleteExhibition && exhibitions.length > 1 && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.confirm(`'${formData.title}' 전시를 삭제하시겠습니까?`)) {
+                    onDeleteExhibition(formData.id);
+                  }
+                }}
+                className="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1"
+                title="전시 삭제"
+              >
+                <span className="material-symbols-outlined text-sm">delete</span>
+              </button>
+            )}
+          </div>
+        </div>
+
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-8 flex-grow">
           {/* Section 1: Exhibition Details */}
           <div className="space-y-4">
-            <div className="flex items-center gap-2 border-b border-[#c4c7c7]/30 pb-2">
-              <span className="material-symbols-outlined text-lg text-[#000000]">photo_camera_back</span>
-              <h3 className="font-sans font-semibold text-base text-[#000000]">1. 사진전 정보 (Exhibition Intro)</h3>
+            <div className="flex items-center justify-between border-b border-[#c4c7c7]/30 pb-2">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-lg text-[#000000]">photo_camera_back</span>
+                <h3 className="font-sans font-semibold text-base text-[#000000]">1. 전시 기본 정보</h3>
+              </div>
+              <div className="flex items-center gap-3">
+                <label className="text-xs font-semibold text-[#444748]">전시 상태:</label>
+                <select
+                  value={formData.status || 'past'}
+                  onChange={(e) => handleChange('status', e.target.value)}
+                  className="px-2.5 py-1 text-xs bg-[#f3f3f4] border border-[#c4c7c7] rounded-lg font-medium"
+                >
+                  <option value="active">현재 진행 중 (Active)</option>
+                  <option value="past">과거 전시 아카이브 (Past)</option>
+                  <option value="upcoming">예정 전시 (Upcoming)</option>
+                </select>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-[#444748] mb-1">
-                  전시 제목 (Title)
+                  전시 제목 (Title) *
                 </label>
                 <input
                   type="text"
@@ -223,23 +355,38 @@ export const ExhibitionEditModal: React.FC<ExhibitionEditModalProps> = ({
               </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-[#444748] mb-1">
-                전시 기간 / 안내 문구 (Period / Status)
-              </label>
-              <input
-                type="text"
-                value={formData.period || ''}
-                onChange={(e) => handleChange('period', e.target.value)}
-                placeholder="예: 2026.08.01 - Permanent Online Exhibition"
-                className="w-full px-3 py-2 text-sm bg-[#f3f3f4] border border-[#c4c7c7] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#000000]"
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-[#444748] mb-1">
+                  전시 기간 / 안내 문구 (Period)
+                </label>
+                <input
+                  type="text"
+                  value={formData.period || ''}
+                  onChange={(e) => handleChange('period', e.target.value)}
+                  placeholder="예: 2026.08.01 - Permanent Online Exhibition"
+                  className="w-full px-3 py-2 text-sm bg-[#f3f3f4] border border-[#c4c7c7] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#000000]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-[#444748] mb-1">
+                  전시 장소/공간 (Location / Venue)
+                </label>
+                <input
+                  type="text"
+                  value={formData.location || ''}
+                  onChange={(e) => handleChange('location', e.target.value)}
+                  placeholder="예: 온라인 3D 갤러리 / 서울 성수 스튜디오"
+                  className="w-full px-3 py-2 text-sm bg-[#f3f3f4] border border-[#c4c7c7] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#000000]"
+                />
+              </div>
             </div>
 
             {/* Intro Cover Image */}
             <div>
               <label className="block text-xs font-semibold text-[#444748] mb-1">
-                전시 대표 이미지 URL (Main Cover Image)
+                전시 포스터 / 대표 이미지 URL (Main Cover Image)
               </label>
               <div className="flex gap-2">
                 <input
@@ -278,13 +425,13 @@ export const ExhibitionEditModal: React.FC<ExhibitionEditModalProps> = ({
             {/* Intro Text */}
             <div>
               <label className="block text-xs font-semibold text-[#444748] mb-1">
-                사진전 소개 글 (Exhibition Introduction)
+                전시 기획 서문 / 소개 글 (Exhibition Introduction)
               </label>
               <textarea
                 rows={4}
                 value={formData.introText || ''}
                 onChange={(e) => handleChange('introText', e.target.value)}
-                placeholder="전시회의 기획 의도 및 컨셉을 작성하세요."
+                placeholder="해당 전시회의 기획 의도 및 컨셉을 상세하게 작성하세요."
                 className="w-full px-3 py-2 text-sm bg-[#f3f3f4] border border-[#c4c7c7] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#000000] leading-relaxed"
               />
             </div>
@@ -294,7 +441,7 @@ export const ExhibitionEditModal: React.FC<ExhibitionEditModalProps> = ({
           <div className="space-y-4 pt-2">
             <div className="flex items-center gap-2 border-b border-[#c4c7c7]/30 pb-2">
               <span className="material-symbols-outlined text-lg text-[#000000]">person_pin</span>
-              <h3 className="font-sans font-semibold text-base text-[#000000]">2. 작가 노트 (Artist Note)</h3>
+              <h3 className="font-sans font-semibold text-base text-[#000000]">2. 이 전시의 작가 노트 (Artist Statement)</h3>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -372,7 +519,7 @@ export const ExhibitionEditModal: React.FC<ExhibitionEditModalProps> = ({
             {/* Artist Quote */}
             <div>
               <label className="block text-xs font-semibold text-[#444748] mb-1">
-                대표 문구 / 인용구 (Artist Quote)
+                이 전시의 대표 문구 / 인용구 (Artist Quote)
               </label>
               <input
                 type="text"
@@ -386,13 +533,13 @@ export const ExhibitionEditModal: React.FC<ExhibitionEditModalProps> = ({
             {/* Artist Note Text */}
             <div>
               <label className="block text-xs font-semibold text-[#444748] mb-1">
-                작가 노트 본문 (Artist Note Statement)
+                이 전시를 기획하며 쓴 작가 노트 본문 (Artist Statement)
               </label>
               <textarea
                 rows={6}
                 value={formData.artistNote || ''}
                 onChange={(e) => handleChange('artistNote', e.target.value)}
-                placeholder="사진을 찍으며 느낀 예술 철학, 생각, 에세이를 편안하게 적어주세요."
+                placeholder="이 당시 전시를 준비하며 느낀 예술 철학, 생각, 에세이를 적어주세요."
                 className="w-full px-3 py-2 text-sm bg-[#f3f3f4] border border-[#c4c7c7] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#000000] leading-relaxed"
               />
             </div>
@@ -404,7 +551,7 @@ export const ExhibitionEditModal: React.FC<ExhibitionEditModalProps> = ({
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-lg text-[#000000]">collections</span>
                 <h3 className="font-sans font-semibold text-base text-[#000000]">
-                  3. 특별전시 참여 작품 큐레이션 및 순서 변경
+                  3. 해당 전시 수록 작품 큐레이션 및 순서 변경
                 </h3>
               </div>
               <span className="text-xs text-[#747878] font-medium">
@@ -417,7 +564,7 @@ export const ExhibitionEditModal: React.FC<ExhibitionEditModalProps> = ({
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5 text-xs font-semibold text-[#1a1c1c]">
                   <span className="material-symbols-outlined text-base text-amber-600">drag_indicator</span>
-                  <span>선택된 특별전시 작품 순서 (카드를 드래그하거나 화살표로 순서를 변경하세요)</span>
+                  <span>선택된 전시 작품 순서 (카드를 드래그하거나 화살표로 순서를 변경하세요)</span>
                 </div>
                 {selectedPhotoObjects.length > 0 && (
                   <button
@@ -432,7 +579,7 @@ export const ExhibitionEditModal: React.FC<ExhibitionEditModalProps> = ({
 
               {selectedPhotoObjects.length === 0 ? (
                 <div className="py-6 text-center text-xs text-[#747878] border border-dashed border-[#c4c7c7] rounded-xl bg-white">
-                  아래 사진 목록에서 작품을 클릭하여 특별전시에 추가해 주세요.
+                  아래 사진 목록에서 작품을 클릭하여 이 전시에 포함시킬 사진을 선택해 주세요.
                 </div>
               ) : (
                 <div className="flex gap-2.5 overflow-x-auto pb-2 pt-1 px-1 custom-scrollbar">
@@ -461,7 +608,7 @@ export const ExhibitionEditModal: React.FC<ExhibitionEditModalProps> = ({
                           const nextIds = (formData.exhibitionPhotoIds || []).filter((id) => id !== photo.id);
                           setFormData((prev) => ({ ...prev, exhibitionPhotoIds: nextIds }));
                         }}
-                        title="특별전시에서 제외"
+                        title="전시에서 제외"
                         className="absolute top-2 right-2 bg-black/60 hover:bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs z-10 transition-colors cursor-pointer"
                       >
                         ✕
@@ -569,7 +716,6 @@ export const ExhibitionEditModal: React.FC<ExhibitionEditModalProps> = ({
                       )}
                     </div>
 
-                    {/* Batch Add Filtered Button */}
                     {searchTagFilter.trim() && filteredPhotos.length > 0 && (
                       <button
                         type="button"
@@ -586,7 +732,6 @@ export const ExhibitionEditModal: React.FC<ExhibitionEditModalProps> = ({
                     )}
                   </div>
 
-                  {/* Popular Quick Tag Chips */}
                   {allUniqueTags.length > 0 && (
                     <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-[#f0f0f0]">
                       <span className="text-[11px] text-[#747878] font-semibold mr-1">인기 태그:</span>
@@ -614,12 +759,10 @@ export const ExhibitionEditModal: React.FC<ExhibitionEditModalProps> = ({
             <div className="space-y-1.5">
               <div className="flex items-center justify-between text-xs text-[#747878]">
                 <span>
-                  사진을 클릭하여 특별전에 추가/제외하세요 ({filteredPhotos.length}장 검색됨)
+                  사진을 클릭하여 이 전시에 포함/제외하세요 ({filteredPhotos.length}장 검색됨)
                 </span>
                 {searchTagFilter && (
-                  <span className="text-amber-700 font-semibold">
-                    필터: '{searchTagFilter}'
-                  </span>
+                  <span className="text-amber-700 font-semibold">필터: '{searchTagFilter}'</span>
                 )}
               </div>
 
@@ -672,18 +815,14 @@ export const ExhibitionEditModal: React.FC<ExhibitionEditModalProps> = ({
           )}
 
           {uploadError && (
-            <div className="p-3 bg-red-50 text-red-700 text-xs rounded-lg">
-              {uploadError}
-            </div>
+            <div className="p-3 bg-red-50 text-red-700 text-xs rounded-lg">{uploadError}</div>
           )}
 
           {/* Photo Picker Drawer */}
           {photoPickerTarget && (
             <div className="p-4 bg-[#f3f3f4] rounded-xl border border-[#c4c7c7] space-y-3 animate-fadeIn">
               <div className="flex justify-between items-center">
-                <span className="text-xs font-semibold text-[#000000]">
-                  갤러리 사진 중 선택
-                </span>
+                <span className="text-xs font-semibold text-[#000000]">갤러리 사진 중 선택</span>
                 <button
                   type="button"
                   onClick={() => setPhotoPickerTarget(null)}
@@ -708,31 +847,21 @@ export const ExhibitionEditModal: React.FC<ExhibitionEditModalProps> = ({
           )}
 
           {/* Footer Actions */}
-          <div className="flex justify-between items-center pt-4 border-t border-[#c4c7c7]/30">
+          <div className="flex justify-end items-center gap-2 pt-4 border-t border-[#c4c7c7]/30">
             <button
               type="button"
-              onClick={handleReset}
-              className="text-xs text-red-600 hover:text-red-800 font-medium cursor-pointer"
+              onClick={onClose}
+              className="px-4 py-2 text-sm border border-[#c4c7c7] text-[#444748] rounded-xl font-medium hover:bg-[#e2e2e2] transition-colors cursor-pointer"
             >
-              기본값으로 복원
+              취소
             </button>
-
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 text-sm border border-[#c4c7c7] text-[#444748] rounded-xl font-medium hover:bg-[#e2e2e2] transition-colors cursor-pointer"
-              >
-                취소
-              </button>
-              <button
-                type="submit"
-                className="px-5 py-2 text-sm bg-[#000000] text-white rounded-xl font-semibold hover:bg-opacity-90 transition-colors shadow-md cursor-pointer flex items-center gap-1.5"
-              >
-                <span className="material-symbols-outlined text-base">save</span>
-                저장 및 자동 동기화
-              </button>
-            </div>
+            <button
+              type="submit"
+              className="px-5 py-2 text-sm bg-[#000000] text-white rounded-xl font-semibold hover:bg-opacity-90 transition-colors shadow-md cursor-pointer flex items-center gap-1.5"
+            >
+              <span className="material-symbols-outlined text-base">save</span>
+              이 전시 저장 및 구글 시트 자동 동기화
+            </button>
           </div>
         </form>
       </div>

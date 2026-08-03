@@ -1,4 +1,41 @@
-import { Category, Tag, Photo, HomeSettings, ExhibitionInfo } from './types';
+import { Category, Tag, Photo, HomeSettings, ExhibitionInfo, Exhibition } from './types';
+
+export const INITIAL_EXHIBITIONS: Exhibition[] = [
+  {
+    id: 'exhibition-1',
+    title: '시선의 여정: 빛과 고요',
+    subtitle: '일상의 스쳐 지나가는 순간 속 찰나의 기억들',
+    period: '2026.08.01 - 진행 중 (Permanent)',
+    status: 'active',
+    introImage: 'https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?auto=format&fit=crop&q=80&w=1200',
+    introText: '이번 사진전 <시선의 여정>은 정지된 시간 속에서 빛과 그림자가 자아내는 고요한 아우라를 담아냅니다. 단순한 풍경 기록을 넘어, 우리가 지나치는 무심한 공간과 사물에 깃든 깊은 서사를 렌즈라는 시선을 통해 재조명합니다.',
+    artistName: 'Juno',
+    artistRole: 'Visual Artist / Photographer',
+    artistPhoto: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=600',
+    artistQuote: '카메라는 눈이 아닌 마음의 렌즈로 세상을 기록하는 정직한 거울입니다.',
+    artistNote: '셔터를 누르는 순간, 세상의 소음은 사그라들고 오롯이 나와 피사체 간의 조용한 대화가 시작됩니다. 사진을 찍는 것은 피사체를 소유하는 것이 아니라, 순간의 감정과 빛의 온도를 간직하는 작업입니다.\n\n길거리의 차가운 빗방울, 해질녘 건물의 따스한 여운, 이름을 알 수 없는 스쳐가는 타인의 표정까지. 모든 사진에는 그 당시 내가 느꼈던 조용한 고독과 작은 설렘이 녹아있습니다.\n\n관람객 여러분께서도 이 사진들 앞을 거닐며 각자 잊고 지냈던 유일무이한 순간과 기억의 한 조각을 떠올리실 수 있기를 바랍니다.',
+    exhibitionPhotoIds: ['photo-1', 'photo-3', 'photo-5', 'photo-7'],
+    createdAt: '2026-08-01'
+  },
+  {
+    id: 'exhibition-2',
+    title: '도시의 숨결 & 정적 (Urban Breath)',
+    subtitle: '콘크리트 숲 사이로 스며드는 수직의 미학',
+    period: '2025.09.15 - 2025.12.31 (종료전)',
+    status: 'past',
+    introImage: 'https://images.unsplash.com/photo-1514565131-fce0801e5785?auto=format&fit=crop&q=80&w=1200',
+    introText: '기획전 <도시의 숨결 & 정적>은 현대 도심의 구조적 건축물과 그 안에 존재하는 인간의 고독을 다룬 특별 아카이브 전시입니다. 밤과 낮이 교차하는 길거리의 표정을 기록했습니다.',
+    artistName: 'Juno',
+    artistRole: 'Visual Artist / Photographer',
+    artistPhoto: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=600',
+    artistQuote: '도시는 거대한 유기체이며, 사선과 그림자는 그 도시가 내쉬는 숨결입니다.',
+    artistNote: '바쁜 인파와 화려한 네온사인 뒤편에 자리한 침묵의 공간을 찾았습니다. 차가운 건물 벽면에 드리워진 기하학적 그림자는 도시라는 공간이 품은 또 다른 인격입니다.\n\n이 사진들을 연작으로 다루며, 익숙한 거리 풍경이 낯설고 매혹적인 기하학적 화폭으로 변모하는 순간을 느끼셨길 바랍니다.',
+    exhibitionPhotoIds: ['photo-3', 'photo-6', 'photo-8'],
+    createdAt: '2025-09-15'
+  }
+];
+
+export const INITIAL_EXHIBITION_INFO: ExhibitionInfo = INITIAL_EXHIBITIONS[0];
 
 export const INITIAL_CATEGORIES: Category[] = [
   { id: 'cat-abstract', name: 'Abstract', icon: 'palette', description: 'Form, color, and texture studies.' },
@@ -157,17 +194,4 @@ export const INITIAL_HOME_SETTINGS: HomeSettings = {
   cloudinaryCloudName: 'ryhom5vw',
   cloudinaryUploadPreset: 'photo_gallery_preset',
   googleSheetAppUrl: 'https://script.google.com/macros/s/AKfycbzvRVU7ythOqAG6xy7WE87vs7g16U1UFglncVnC4CVsV4jBqeq0OtZHkkPsb49H4uo_/exec'
-};
-
-export const INITIAL_EXHIBITION_INFO: ExhibitionInfo = {
-  title: '시선의 여정: 빛과 고요',
-  subtitle: '일상의 스쳐 지나가는 순간 속 찰나의 기억들',
-  period: '2026.08.01 - Permanent Online Exhibition',
-  introImage: 'https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?auto=format&fit=crop&q=80&w=1200',
-  introText: '이번 사진전 <시선의 여정>은 정지된 시간 속에서 빛과 그림자가 자아내는 고요한 아우라를 담아냅니다. 단순한 풍경 기록을 넘어, 우리가 지나치는 무심한 공간과 사물에 깃든 깊은 서사를 렌즈라는 시선을 통해 재조명합니다.',
-  artistName: 'Juno',
-  artistRole: 'Visual Artist / Photographer',
-  artistPhoto: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=600',
-  artistQuote: '카메라는 눈이 아닌 마음의 렌즈로 세상을 기록하는 정직한 거울입니다.',
-  artistNote: '셔터를 누르는 순간, 세상의 소음은 사그라들고 오롯이 나와 피사체 간의 조용한 대화가 시작됩니다. 사진을 찍는 것은 피사체를 소유하는 것이 아니라, 순간의 감정과 빛의 온도를 간직하는 작업입니다.\n\n길거리의 차가운 빗방울, 해질녘 건물의 따스한 여운, 이름을 알 수 없는 스쳐가는 타인의 표정까지. 모든 사진에는 그 당시 내가 느꼈던 조용한 고독과 작은 설렘이 녹아있습니다.\n\n관람객 여러분께서도 이 사진들 앞을 거닐며 각자 잊고 지냈던 유일무이한 순간과 기억의 한 조각을 떠올리실 수 있기를 바랍니다.'
 };

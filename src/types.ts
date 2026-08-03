@@ -28,10 +28,12 @@ export interface Photo {
 
 export type ActiveView = 'home' | 'gallery' | 'categories' | 'photo-detail' | 'exhibition';
 
-export interface ExhibitionInfo {
+export interface Exhibition {
+  id: string;
   title: string;
   subtitle: string;
   period: string;
+  status?: 'active' | 'past' | 'upcoming';
   introImage: string;
   introText: string;
   artistName: string;
@@ -40,7 +42,11 @@ export interface ExhibitionInfo {
   artistQuote: string;
   artistNote: string;
   exhibitionPhotoIds?: string[];
+  location?: string;
+  createdAt?: string;
 }
+
+export type ExhibitionInfo = Exhibition;
 
 export interface HomeSettings {
   siteName?: string;
