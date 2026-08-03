@@ -398,8 +398,12 @@ export const ExhibitionEditModal: React.FC<ExhibitionEditModalProps> = ({
                 />
                 <button
                   type="button"
-                  onClick={() => setPhotoPickerTarget('introImage')}
-                  className="px-3 py-2 text-xs bg-[#e2e2e2] text-[#1a1c1c] rounded-lg font-medium hover:bg-[#dcdddd] transition-colors cursor-pointer flex items-center gap-1"
+                  onClick={() => setPhotoPickerTarget(photoPickerTarget === 'introImage' ? null : 'introImage')}
+                  className={`px-3 py-2 text-xs rounded-lg font-medium transition-all cursor-pointer flex items-center gap-1.5 shadow-xs ${
+                    photoPickerTarget === 'introImage'
+                      ? 'bg-[#000000] text-white ring-2 ring-amber-400'
+                      : 'bg-[#e2e2e2] text-[#1a1c1c] hover:bg-[#dcdddd]'
+                  }`}
                 >
                   <span className="material-symbols-outlined text-sm">photo_library</span>
                   갤러리 선택
@@ -415,6 +419,42 @@ export const ExhibitionEditModal: React.FC<ExhibitionEditModalProps> = ({
                   />
                 </label>
               </div>
+
+              {/* Inline Photo Picker for introImage */}
+              {photoPickerTarget === 'introImage' && (
+                <div className="mt-3 p-4 bg-white rounded-xl border-2 border-[#000000] shadow-lg space-y-3 animate-fadeIn">
+                  <div className="flex justify-between items-center pb-2 border-b border-[#f0f0f0]">
+                    <span className="text-xs font-bold text-[#000000] flex items-center gap-1.5">
+                      <span className="material-symbols-outlined text-base text-amber-600">photo_library</span>
+                      <span>갤러리 작품에서 대표 이미지 선택 ({photos.length}장)</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setPhotoPickerTarget(null)}
+                      className="text-xs text-[#747878] hover:text-[#000000] font-semibold cursor-pointer"
+                    >
+                      닫기 ✕
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 max-h-52 overflow-y-auto p-1 custom-scrollbar">
+                    {photos.map((photo) => (
+                      <button
+                        key={photo.id}
+                        type="button"
+                        onClick={() => handleSelectPhotoForTarget(photo.url)}
+                        className="group relative aspect-square rounded-lg overflow-hidden border border-[#c4c7c7] hover:border-[#000000] hover:scale-105 transition-all cursor-pointer bg-[#e2e2e2] shadow-2xs"
+                      >
+                        <img src={photo.url} alt={photo.title} className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white text-[10px] font-bold p-1 text-center">
+                          <span className="material-symbols-outlined text-base text-amber-400 mb-0.5">check_circle</span>
+                          <span className="line-clamp-1">{photo.title}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {formData.introImage && (
                 <div className="mt-2 h-28 rounded-lg overflow-hidden border border-[#c4c7c7]">
                   <img src={formData.introImage} alt="Cover Preview" className="w-full h-full object-cover" />
@@ -487,8 +527,12 @@ export const ExhibitionEditModal: React.FC<ExhibitionEditModalProps> = ({
                 />
                 <button
                   type="button"
-                  onClick={() => setPhotoPickerTarget('artistPhoto')}
-                  className="px-3 py-2 text-xs bg-[#e2e2e2] text-[#1a1c1c] rounded-lg font-medium hover:bg-[#dcdddd] transition-colors cursor-pointer flex items-center gap-1"
+                  onClick={() => setPhotoPickerTarget(photoPickerTarget === 'artistPhoto' ? null : 'artistPhoto')}
+                  className={`px-3 py-2 text-xs rounded-lg font-medium transition-all cursor-pointer flex items-center gap-1.5 shadow-xs ${
+                    photoPickerTarget === 'artistPhoto'
+                      ? 'bg-[#000000] text-white ring-2 ring-amber-400'
+                      : 'bg-[#e2e2e2] text-[#1a1c1c] hover:bg-[#dcdddd]'
+                  }`}
                 >
                   <span className="material-symbols-outlined text-sm">photo_library</span>
                   갤러리 선택
@@ -504,6 +548,42 @@ export const ExhibitionEditModal: React.FC<ExhibitionEditModalProps> = ({
                   />
                 </label>
               </div>
+
+              {/* Inline Photo Picker for artistPhoto */}
+              {photoPickerTarget === 'artistPhoto' && (
+                <div className="mt-3 p-4 bg-white rounded-xl border-2 border-[#000000] shadow-lg space-y-3 animate-fadeIn">
+                  <div className="flex justify-between items-center pb-2 border-b border-[#f0f0f0]">
+                    <span className="text-xs font-bold text-[#000000] flex items-center gap-1.5">
+                      <span className="material-symbols-outlined text-base text-amber-600">photo_library</span>
+                      <span>갤러리 작품에서 작가 프로필 사진 선택 ({photos.length}장)</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setPhotoPickerTarget(null)}
+                      className="text-xs text-[#747878] hover:text-[#000000] font-semibold cursor-pointer"
+                    >
+                      닫기 ✕
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 max-h-52 overflow-y-auto p-1 custom-scrollbar">
+                    {photos.map((photo) => (
+                      <button
+                        key={photo.id}
+                        type="button"
+                        onClick={() => handleSelectPhotoForTarget(photo.url)}
+                        className="group relative aspect-square rounded-lg overflow-hidden border border-[#c4c7c7] hover:border-[#000000] hover:scale-105 transition-all cursor-pointer bg-[#e2e2e2] shadow-2xs"
+                      >
+                        <img src={photo.url} alt={photo.title} className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white text-[10px] font-bold p-1 text-center">
+                          <span className="material-symbols-outlined text-base text-amber-400 mb-0.5">check_circle</span>
+                          <span className="line-clamp-1">{photo.title}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {formData.artistPhoto && (
                 <div className="mt-2 flex items-center gap-3">
                   <img
@@ -818,34 +898,6 @@ export const ExhibitionEditModal: React.FC<ExhibitionEditModalProps> = ({
             <div className="p-3 bg-red-50 text-red-700 text-xs rounded-lg">{uploadError}</div>
           )}
 
-          {/* Photo Picker Drawer */}
-          {photoPickerTarget && (
-            <div className="p-4 bg-[#f3f3f4] rounded-xl border border-[#c4c7c7] space-y-3 animate-fadeIn">
-              <div className="flex justify-between items-center">
-                <span className="text-xs font-semibold text-[#000000]">갤러리 사진 중 선택</span>
-                <button
-                  type="button"
-                  onClick={() => setPhotoPickerTarget(null)}
-                  className="text-xs text-[#747878] hover:text-[#000000]"
-                >
-                  취소
-                </button>
-              </div>
-              <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 max-h-40 overflow-y-auto p-1">
-                {photos.map((photo) => (
-                  <button
-                    key={photo.id}
-                    type="button"
-                    onClick={() => handleSelectPhotoForTarget(photo.url)}
-                    className="aspect-square rounded-md overflow-hidden border border-[#c4c7c7] hover:border-[#000000] hover:scale-105 transition-all cursor-pointer"
-                  >
-                    <img src={photo.url} alt={photo.title} className="w-full h-full object-cover" />
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* Footer Actions */}
           <div className="flex justify-end items-center gap-2 pt-4 border-t border-[#c4c7c7]/30">
             <button
@@ -865,6 +917,60 @@ export const ExhibitionEditModal: React.FC<ExhibitionEditModalProps> = ({
           </div>
         </form>
       </div>
+
+      {/* Photo Picker Fixed Sub-modal Overlay */}
+      {photoPickerTarget && (
+        <div className="fixed inset-0 z-[70] bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[80vh] flex flex-col p-6 shadow-2xl border border-[#c4c7c7]">
+            <div className="flex justify-between items-center mb-4 pb-3 border-b border-[#f0f0f0]">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-amber-600 text-xl">photo_library</span>
+                <h3 className="font-serif text-lg font-bold text-[#000000]">
+                  {photoPickerTarget === 'introImage' ? '전시 포스터 / 대표 이미지 선택' : '작가 프로필 사진 선택'}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPhotoPickerTarget(null)}
+                className="w-8 h-8 rounded-full hover:bg-[#e2e2e2] flex items-center justify-center text-[#444748] cursor-pointer transition-colors"
+              >
+                <span className="material-symbols-outlined text-lg">close</span>
+              </button>
+            </div>
+
+            <p className="text-xs text-[#747878] mb-4">
+              갤러리에 등록된 전체 사진 중 아래에서 적용할 이미지를 클릭하세요.
+            </p>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 overflow-y-auto max-h-[50vh] p-1 custom-scrollbar">
+              {photos.map((photo) => (
+                <button
+                  key={photo.id}
+                  type="button"
+                  onClick={() => handleSelectPhotoForTarget(photo.url)}
+                  className="group relative aspect-square rounded-xl overflow-hidden border-2 border-transparent hover:border-[#000000] focus:border-[#000000] transition-all cursor-pointer shadow-xs bg-[#e2e2e2]"
+                >
+                  <img src={photo.url} alt={photo.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white text-xs font-semibold p-2 text-center">
+                    <span className="material-symbols-outlined text-xl text-amber-400 mb-1">check_circle</span>
+                    <span className="line-clamp-2">{photo.title}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-[#f0f0f0] flex justify-end">
+              <button
+                type="button"
+                onClick={() => setPhotoPickerTarget(null)}
+                className="px-4 py-2 text-xs font-semibold border border-[#c4c7c7] text-[#444748] rounded-xl hover:bg-[#e2e2e2] cursor-pointer transition-colors"
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
