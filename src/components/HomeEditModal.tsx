@@ -92,6 +92,26 @@ export const HomeEditModal: React.FC<HomeEditModalProps> = ({
                 상단 헤더 브랜드 로고 및 하단 푸터에 표시되는 홈페이지 이름입니다.
               </p>
             </div>
+
+            {/* Gallery Page Show/Hide Control */}
+            <div className="bg-[#f0f0f2] p-3.5 rounded-xl border border-[#c4c7c7] flex items-center justify-between gap-4 mt-3">
+              <div className="space-y-0.5">
+                <label htmlFor="showGalleryPageToggle" className="text-xs font-bold text-[#000000] flex items-center gap-1.5 cursor-pointer">
+                  <span className="material-symbols-outlined text-base text-amber-600">collections</span>
+                  <span>Gallery 페이지 메뉴 표시</span>
+                </label>
+                <p className="text-[11px] text-[#747878]">
+                  체크 시 상단 헤더 메뉴 및 모바일 메뉴에 'Gallery' 페이지 탭이 표시됩니다. (체크 해제 시 숨김)
+                </p>
+              </div>
+              <input
+                id="showGalleryPageToggle"
+                type="checkbox"
+                checked={formData.showGalleryPage !== false}
+                onChange={(e) => setFormData((prev) => ({ ...prev, showGalleryPage: e.target.checked }))}
+                className="w-5 h-5 accent-[#000000] rounded cursor-pointer shrink-0"
+              />
+            </div>
           </div>
 
           {/* Section 0.5: External Storage & Database Services */}

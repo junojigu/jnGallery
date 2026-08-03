@@ -3,6 +3,7 @@ import { ActiveView } from '../types';
 
 interface HeaderProps {
   siteName?: string;
+  showGalleryPage?: boolean;
   activeView: ActiveView;
   setActiveView: (view: ActiveView) => void;
   searchQuery: string;
@@ -18,6 +19,7 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({
   siteName = 'Photo Moments',
+  showGalleryPage = true,
   activeView,
   setActiveView,
   searchQuery,
@@ -70,20 +72,24 @@ export const Header: React.FC<HeaderProps> = ({
           >
             Home
           </button>
-          <button
-            onClick={() => handleNavClick('gallery')}
-            className={`font-sans text-sm font-medium transition-colors cursor-pointer py-1 ${
-              activeView === 'gallery'
-                ? transparent
-                  ? 'border-b-2 border-white text-white font-semibold'
-                  : 'border-b-2 border-[#000000] text-[#000000] font-bold'
-                : transparent
-                ? 'text-white/80 hover:text-white'
-                : 'text-[#444748] hover:text-[#000000]'
-            }`}
-          >
-            Gallery
-          </button>
+
+          {showGalleryPage && (
+            <button
+              onClick={() => handleNavClick('gallery')}
+              className={`font-sans text-sm font-medium transition-colors cursor-pointer py-1 ${
+                activeView === 'gallery'
+                  ? transparent
+                    ? 'border-b-2 border-white text-white font-semibold'
+                    : 'border-b-2 border-[#000000] text-[#000000] font-bold'
+                  : transparent
+                  ? 'text-white/80 hover:text-white'
+                  : 'text-[#444748] hover:text-[#000000]'
+              }`}
+            >
+              Gallery
+            </button>
+          )}
+
           {/* Categories tab ONLY visible for Admin */}
           {isAdmin && (
             <button
@@ -102,12 +108,12 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           )}
 
-          {/* Exhibition (소개 & 작가 노트) Tab */}
+          {/* Exhibition (작품 전시와 작가 노트) Tab */}
           <button
             onClick={() => handleNavClick('exhibition')}
-            title="소개 & 작가 노트"
-            aria-label="소개 & 작가 노트"
-            className={`font-sans text-sm font-medium transition-colors cursor-pointer py-1 flex items-center justify-center ${
+            title="작품 전시와 작가 노트"
+            aria-label="작품 전시와 작가 노트"
+            className={`font-sans text-sm font-medium transition-colors cursor-pointer py-1 flex items-center gap-1.5 ${
               activeView === 'exhibition'
                 ? transparent
                   ? 'border-b-2 border-white text-white font-semibold'
@@ -118,6 +124,7 @@ export const Header: React.FC<HeaderProps> = ({
             }`}
           >
             <span className="material-symbols-outlined text-lg">auto_stories</span>
+            <span>작품 전시와 작가 노트</span>
           </button>
         </nav>
 
@@ -279,14 +286,16 @@ export const Header: React.FC<HeaderProps> = ({
             >
               Home
             </button>
-            <button
-              onClick={() => handleNavClick('gallery')}
-              className={`text-left text-sm font-semibold py-2 px-3 rounded-lg transition-colors cursor-pointer ${
-                activeView === 'gallery' ? 'bg-[#000000] text-white' : 'hover:bg-[#f3f3f4] text-[#1a1c1c]'
-              }`}
-            >
-              Gallery
-            </button>
+            {showGalleryPage && (
+              <button
+                onClick={() => handleNavClick('gallery')}
+                className={`text-left text-sm font-semibold py-2 px-3 rounded-lg transition-colors cursor-pointer ${
+                  activeView === 'gallery' ? 'bg-[#000000] text-white' : 'hover:bg-[#f3f3f4] text-[#1a1c1c]'
+                }`}
+              >
+                Gallery
+              </button>
+            )}
             {isAdmin && (
               <button
                 onClick={() => handleNavClick('categories')}
@@ -304,7 +313,7 @@ export const Header: React.FC<HeaderProps> = ({
               }`}
             >
               <span className="material-symbols-outlined text-lg">auto_stories</span>
-              <span>소개 & 작가 노트</span>
+              <span>작품 전시와 작가 노트</span>
             </button>
           </nav>
 

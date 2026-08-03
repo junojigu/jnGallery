@@ -50,6 +50,7 @@ export type ExhibitionInfo = Exhibition;
 
 export interface HomeSettings {
   siteName?: string;
+  showGalleryPage?: boolean;
   heroImage: string;
   heroTitle: string;
   heroSubtitle: string;

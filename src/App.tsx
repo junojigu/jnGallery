@@ -847,6 +847,7 @@ export default function App() {
       {activeView !== 'photo-detail' && (
         <Header
           siteName={homeSettings.siteName}
+          showGalleryPage={homeSettings.showGalleryPage !== false}
           activeView={activeView}
           setActiveView={(view) => {
             if (view === 'categories' && !isAdmin) {
@@ -876,7 +877,11 @@ export default function App() {
         {activeView === 'home' && (
           <HomeView
             onExplore={() => {
-              setActiveView('gallery');
+              if (homeSettings.showGalleryPage === false) {
+                setActiveView('exhibition');
+              } else {
+                setActiveView('gallery');
+              }
             }}
             homeSettings={homeSettings}
           />

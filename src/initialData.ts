@@ -179,6 +179,7 @@ export const HERO_IMAGE = 'https://lh3.googleusercontent.com/aida-public/AB6AXuB
 
 export const INITIAL_HOME_SETTINGS: HomeSettings = {
   siteName: 'jnGallery',
+  showGalleryPage: true,
   heroImage: HERO_IMAGE,
   heroTitle: '순간의 기억을 담다',
   heroSubtitle: '자연, 초상, 건축, 그리고 일상의 아름다운 풍경을 감상할 수 있는 감성 사진 갤러리입니다.',
