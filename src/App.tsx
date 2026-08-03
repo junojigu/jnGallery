@@ -228,6 +228,7 @@ export default function App() {
   const [isExhibitionEditOpen, setIsExhibitionEditOpen] = useState(false);
 
   const [activeView, setActiveView] = useState<ActiveView>('home');
+  const [previousView, setPreviousView] = useState<ActiveView>('home');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -825,6 +826,9 @@ export default function App() {
   };
 
   const handleViewPhotoDetail = (photo: Photo, contextPhotos?: Photo[], filterLabel?: string) => {
+    if (activeView !== 'photo-detail') {
+      setPreviousView(activeView);
+    }
     setSelectedPhoto(photo);
     setActivePhotoList(contextPhotos || null);
     setActiveFilterLabel(filterLabel || null);
@@ -929,7 +933,7 @@ export default function App() {
             photos={photos}
             isAdmin={isAdmin}
             onOpenEditModal={() => setIsExhibitionEditOpen(true)}
-            onGoToGallery={() => setActiveView('gallery')}
+            onGoToGallery={homeSettings.showGalleryPage === false ? undefined : () => setActiveView('gallery')}
             onViewPhoto={handleViewPhotoDetail}
             onSetActiveExhibition={handleSetActiveExhibition}
           />
@@ -944,7 +948,23 @@ export default function App() {
               setActivePhotoList(null);
               setActiveFilterLabel(null);
             }}
-            onBack={() => setActiveView('gallery')}
+            backButtonText={
+              homeSettings.showGalleryPage === false || previousView === 'exhibition'
+                ? '작품 전시로 돌아가기'
+                : previousView === 'home'
+                ? '홈으로 돌아가기'
+                : '갤러리로 돌아가기'
+            }
+            onBack={() => {
+              let targetView = previousView;
+              if (targetView === 'gallery' && homeSettings.showGalleryPage === false) {
+                targetView = 'exhibition';
+              }
+              if (targetView === 'photo-detail') {
+                targetView = homeSettings.showGalleryPage === false ? 'exhibition' : 'gallery';
+              }
+              setActiveView(targetView);
+            }}
             onSelectPhoto={setSelectedPhoto}
             onEditPhoto={handleEditPhotoClick}
             onDeletePhoto={handleDeletePhoto}

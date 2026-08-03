@@ -108,11 +108,11 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           )}
 
-          {/* Exhibition (작품 전시와 작가 노트) Tab */}
+          {/* Exhibition (작품 전시) Tab */}
           <button
             onClick={() => handleNavClick('exhibition')}
-            title="작품 전시와 작가 노트"
-            aria-label="작품 전시와 작가 노트"
+            title="작품 전시"
+            aria-label="작품 전시"
             className={`font-sans text-sm font-medium transition-colors cursor-pointer py-1 flex items-center gap-1.5 ${
               activeView === 'exhibition'
                 ? transparent
@@ -124,7 +124,7 @@ export const Header: React.FC<HeaderProps> = ({
             }`}
           >
             <span className="material-symbols-outlined text-lg">auto_stories</span>
-            <span>작품 전시와 작가 노트</span>
+            <span>작품 전시</span>
           </button>
         </nav>
 
@@ -313,7 +313,7 @@ export const Header: React.FC<HeaderProps> = ({
               }`}
             >
               <span className="material-symbols-outlined text-lg">auto_stories</span>
-              <span>작품 전시와 작가 노트</span>
+              <span>작품 전시</span>
             </button>
           </nav>
 

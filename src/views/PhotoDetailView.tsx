@@ -7,6 +7,7 @@ interface PhotoDetailViewProps {
   initialFilterLabel?: string | null;
   onClearContextFilter?: () => void;
   onBack: () => void;
+  backButtonText?: string;
   onSelectPhoto: (photo: Photo) => void;
   onEditPhoto: (photo: Photo) => void;
   onDeletePhoto: (photo: Photo) => void;
@@ -20,6 +21,7 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
   initialFilterLabel,
   onClearContextFilter,
   onBack,
+  backButtonText = '갤러리로 돌아가기',
   onSelectPhoto,
   onEditPhoto,
   onDeletePhoto,
@@ -248,7 +250,7 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
             <span className="material-symbols-outlined text-[20px] group-hover:-translate-x-1 transition-transform">
               arrow_back
             </span>
-            <span className="font-semibold text-sm">Back to Gallery</span>
+            <span className="font-semibold text-sm">{backButtonText}</span>
           </button>
 
           {/* Active Filter Badge */}
