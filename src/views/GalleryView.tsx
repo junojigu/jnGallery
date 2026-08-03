@@ -35,7 +35,8 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
   onViewAllTags,
   isAdmin = false,
 }) => {
-  const [selectedTagFilter, setSelectedTagFilter] = useState<string | null>(null);
+  const [selectedTagFilters, setSelectedTagFilters] = useState<string[]>([]);
+  const [tagFilterMode, setTagFilterMode] = useState<'OR' | 'AND'>('OR');
   const [photoSortOrder, setPhotoSortOrder] = useState<'date' | 'popular'>('date');
   const [visibleCount, setVisibleCount] = useState<number>(INITIAL_VISIBLE_COUNT);
   
@@ -44,6 +45,23 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
   const [tagSearchInput, setTagSearchInput] = useState('');
   const [tagSortBy, setTagSortBy] = useState<'count' | 'name'>('count');
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Toggle tag filter helper
+  const toggleTagFilter = (tagName: string) => {
+    const norm = normalizeTag(tagName);
+    setSelectedTagFilters((prev) => {
+      const exists = prev.some((t) => normalizeTag(t) === norm);
+      if (exists) {
+        return prev.filter((t) => normalizeTag(t) !== norm);
+      } else {
+        return [...prev, tagName];
+      }
+    });
+  };
+
+  const clearTagFilters = () => {
+    setSelectedTagFilters([]);
+  };
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -59,7 +77,7 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
   // Reset pagination when filter/category/search changes
   useEffect(() => {
     setVisibleCount(INITIAL_VISIBLE_COUNT);
-  }, [selectedCategoryId, selectedTagFilter, searchQuery]);
+  }, [selectedCategoryId, selectedTagFilters, tagFilterMode, searchQuery]);
 
   // Tag counts based on current category selection
   const tagCounts = useMemo(() => {
@@ -95,14 +113,14 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
   // Main chips to render on the main bar
   const mainChips = useMemo(() => {
     const list = [...primaryTagNames];
-    if (selectedTagFilter) {
-      const isPrimary = primaryTagNames.some((p) => normalizeTag(p) === normalizeTag(selectedTagFilter));
-      if (!isPrimary && !list.includes(selectedTagFilter)) {
-        list.push(selectedTagFilter);
+    selectedTagFilters.forEach((selected) => {
+      const isPrimary = primaryTagNames.some((p) => normalizeTag(p) === normalizeTag(selected));
+      if (!isPrimary && !list.some((item) => normalizeTag(item) === normalizeTag(selected))) {
+        list.push(selected);
       }
-    }
+    });
     return list;
-  }, [primaryTagNames, selectedTagFilter]);
+  }, [primaryTagNames, selectedTagFilters]);
 
   // Dropdown list (contains remaining tags not in primaryTagNames, sorted & filtered)
   const dropdownFilteredTags = useMemo(() => {
@@ -160,16 +178,25 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
         }
       }
       // Tag match
-      if (selectedTagFilter) {
-        const normFilter = normalizeTag(selectedTagFilter);
-        const matchesTag = (photo.tags || []).some((t) => normalizeTag(t) === normFilter);
+      if (selectedTagFilters.length > 0) {
+        const photoTagsNorm = (photo.tags || []).map((t) => normalizeTag(t));
         const cat = categories.find((c) => c.id === photo.categoryId);
-        const matchesCategoryName =
-          (cat && cat.name.toLowerCase() === normFilter) ||
-          (photo.category && photo.category.toLowerCase() === normFilter);
+        const photoCatNorm = [
+          cat ? normalizeTag(cat.name) : '',
+          photo.category ? normalizeTag(photo.category) : ''
+        ].filter(Boolean);
 
-        if (!matchesTag && !matchesCategoryName) {
-          return false;
+        const checkMatch = (filterTag: string) => {
+          const normF = normalizeTag(filterTag);
+          return photoTagsNorm.includes(normF) || photoCatNorm.includes(normF);
+        };
+
+        if (tagFilterMode === 'AND') {
+          const matchesAll = selectedTagFilters.every((fTag) => checkMatch(fTag));
+          if (!matchesAll) return false;
+        } else {
+          const matchesAny = selectedTagFilters.some((fTag) => checkMatch(fTag));
+          if (!matchesAny) return false;
         }
       }
       // Search query match
@@ -185,7 +212,7 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
       }
       return true;
     });
-  }, [photos, selectedCategoryId, activeCategory, selectedTagFilter, searchQuery, categories]);
+  }, [photos, selectedCategoryId, activeCategory, selectedTagFilters, tagFilterMode, searchQuery, categories]);
 
   // Sort photos according to photoSortOrder ('date' | 'popular')
   const sortedPhotos = useMemo(() => {
@@ -226,7 +253,7 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
         selectedCategoryId={selectedCategoryId}
         onSelectCategory={(id) => {
           onSelectCategory(id);
-          setSelectedTagFilter(null);
+          clearTagFilters();
         }}
         onViewAllTags={onViewAllTags}
         isAdmin={isAdmin}
@@ -257,9 +284,9 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
             <div className="flex flex-wrap items-center gap-5 sm:gap-6">
               {/* All Button */}
               <button
-                onClick={() => setSelectedTagFilter(null)}
+                onClick={clearTagFilters}
                 className={`font-sans text-sm font-semibold cursor-pointer pb-2.5 -mb-3 transition-colors border-b-2 ${
-                  selectedTagFilter === null
+                  selectedTagFilters.length === 0
                     ? 'text-[#000000] border-[#000000] font-bold'
                     : 'text-[#8e8e93] hover:text-[#000000] border-transparent'
                 }`}
@@ -269,19 +296,20 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
 
               {/* Top Main Tags */}
               {mainChips.map((tagName) => {
-                const isSelected = !!selectedTagFilter && normalizeTag(selectedTagFilter) === normalizeTag(tagName);
+                const isSelected = selectedTagFilters.some((t) => normalizeTag(t) === normalizeTag(tagName));
                 const displayName = tagName.startsWith('#') ? tagName : `#${tagName}`;
                 return (
                   <button
                     key={tagName}
-                    onClick={() => setSelectedTagFilter(isSelected ? null : tagName)}
-                    className={`font-sans text-sm font-medium cursor-pointer pb-2.5 -mb-3 transition-colors border-b-2 ${
+                    onClick={() => toggleTagFilter(tagName)}
+                    className={`font-sans text-sm font-medium cursor-pointer pb-2.5 -mb-3 transition-colors border-b-2 flex items-center gap-1 ${
                       isSelected
                         ? 'text-[#000000] border-[#000000] font-bold'
                         : 'text-[#8e8e93] hover:text-[#000000] border-transparent'
                     }`}
                   >
-                    {displayName}
+                    <span>{displayName}</span>
+                    {isSelected && <span className="text-[10px] bg-black text-white px-1.5 py-0.2 rounded-full">✓</span>}
                   </button>
                 );
               })}
@@ -292,13 +320,18 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
               <button
                 onClick={() => setIsTagDropdownOpen(!isTagDropdownOpen)}
                 className={`font-sans text-xs font-medium px-3.5 py-2 rounded-lg transition-colors cursor-pointer flex items-center justify-center gap-1.5 ${
-                  isTagDropdownOpen || (selectedTagFilter && !primaryTagNames.some((p) => normalizeTag(p) === normalizeTag(selectedTagFilter)))
+                  isTagDropdownOpen || selectedTagFilters.length > 0
                     ? 'bg-[#1a1c1c] text-white'
                     : 'bg-[#f5f5f5] hover:bg-[#eaeaea] text-[#2c2c2e]'
                 }`}
               >
                 <span className="material-symbols-outlined text-sm">search</span>
                 <span>태그 검색 / 더보기</span>
+                {selectedTagFilters.length > 0 && (
+                  <span className="bg-white text-black text-[10px] font-extrabold px-1.5 py-0.2 rounded-full">
+                    {selectedTagFilters.length}
+                  </span>
+                )}
                 <span className="material-symbols-outlined text-sm">
                   {isTagDropdownOpen ? 'expand_less' : 'expand_more'}
                 </span>
@@ -330,13 +363,51 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
                     )}
                   </div>
 
-                  {/* Sort Controls & Active Filter Reset */}
+                  {/* Filter Mode & Reset Controls */}
                   <div className="flex items-center justify-between border-b border-[#e2e2e2] pb-2 mb-2 px-1">
                     <div className="flex items-center gap-1">
-                      <span className="text-[10px] text-[#747878] font-medium mr-1">정렬:</span>
+                      <span className="text-[10px] text-[#747878] font-semibold mr-0.5">조건:</span>
+                      <button
+                        onClick={() => setTagFilterMode('OR')}
+                        className={`text-[11px] px-2 py-0.5 rounded-md transition-all cursor-pointer ${
+                          tagFilterMode === 'OR'
+                            ? 'bg-[#000000] text-white font-bold'
+                            : 'text-[#444748] bg-[#f3f3f4] hover:bg-[#e2e2e2]'
+                        }`}
+                        title="선택한 태그 중 하나라도 포함된 사진 표시"
+                      >
+                        OR
+                      </button>
+                      <button
+                        onClick={() => setTagFilterMode('AND')}
+                        className={`text-[11px] px-2 py-0.5 rounded-md transition-all cursor-pointer ${
+                          tagFilterMode === 'AND'
+                            ? 'bg-[#000000] text-white font-bold'
+                            : 'text-[#444748] bg-[#f3f3f4] hover:bg-[#e2e2e2]'
+                        }`}
+                        title="선택한 태그를 모두 포함한 사진만 표시"
+                      >
+                        AND
+                      </button>
+                    </div>
+
+                    {selectedTagFilters.length > 0 && (
+                      <button
+                        onClick={clearTagFilters}
+                        className="text-[10px] text-rose-600 hover:underline font-semibold cursor-pointer"
+                      >
+                        선택 해제
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Sort Controls */}
+                  <div className="flex items-center justify-between border-b border-[#e2e2e2] pb-2 mb-2 px-1">
+                    <span className="text-[10px] text-[#747878] font-medium">정렬:</span>
+                    <div className="flex items-center gap-1">
                       <button
                         onClick={() => setTagSortBy('count')}
-                        className={`text-[11px] px-2 py-0.5 rounded-md transition-colors ${
+                        className={`text-[10px] px-2 py-0.5 rounded-md transition-colors cursor-pointer ${
                           tagSortBy === 'count'
                             ? 'bg-[#000000] text-white font-medium'
                             : 'text-[#444748] hover:bg-[#e2e2e2]'
@@ -346,7 +417,7 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
                       </button>
                       <button
                         onClick={() => setTagSortBy('name')}
-                        className={`text-[11px] px-2 py-0.5 rounded-md transition-colors ${
+                        className={`text-[10px] px-2 py-0.5 rounded-md transition-colors cursor-pointer ${
                           tagSortBy === 'name'
                             ? 'bg-[#000000] text-white font-medium'
                             : 'text-[#444748] hover:bg-[#e2e2e2]'
@@ -355,36 +426,47 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
                         가나다순
                       </button>
                     </div>
-
-                    {selectedTagFilter && (
-                      <button
-                        onClick={() => {
-                          setSelectedTagFilter(null);
-                        }}
-                        className="text-[10px] text-rose-600 hover:underline font-medium"
-                      >
-                        필터 해제
-                      </button>
-                    )}
                   </div>
 
+                  {/* Selected Tags Pills inside Dropdown if any */}
+                  {selectedTagFilters.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-1 mb-2 px-1 pb-2 border-b border-[#e2e2e2]">
+                      {selectedTagFilters.map((st) => (
+                        <span
+                          key={st}
+                          className="inline-flex items-center gap-1 bg-[#000000] text-white text-[10px] px-2 py-0.5 rounded-full font-medium"
+                        >
+                          #{normalizeTag(st)}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleTagFilter(st);
+                            }}
+                            className="hover:text-rose-300 ml-0.5 cursor-pointer font-bold"
+                          >
+                            ✕
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
                   {/* Tag List */}
-                  <div className="max-h-56 overflow-y-auto space-y-1 pr-0.5 custom-scrollbar">
+                  <div className="max-h-52 overflow-y-auto space-y-1 pr-0.5 custom-scrollbar">
                     {dropdownFilteredTags.length === 0 ? (
                       <div className="py-6 text-center text-xs text-[#747878]">
                         검색 결과가 없습니다.
                       </div>
                     ) : (
                       dropdownFilteredTags.map((tagName) => {
-                        const isSelected = !!selectedTagFilter && normalizeTag(selectedTagFilter) === normalizeTag(tagName);
+                        const isSelected = selectedTagFilters.some((t) => normalizeTag(t) === normalizeTag(tagName));
                         const count = tagCounts[tagName] || 0;
                         const displayName = tagName.startsWith('#') ? tagName : `#${tagName}`;
                         return (
                           <button
                             key={tagName}
                             onClick={() => {
-                              setSelectedTagFilter(isSelected ? null : tagName);
-                              setIsTagDropdownOpen(false);
+                              toggleTagFilter(tagName);
                             }}
                             className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs flex items-center justify-between transition-colors cursor-pointer ${
                               isSelected
@@ -401,8 +483,10 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
                               >
                                 {count}장
                               </span>
-                              {isSelected && (
-                                <span className="material-symbols-outlined text-sm text-white">check</span>
+                              {isSelected ? (
+                                <span className="material-symbols-outlined text-sm text-white">check_box</span>
+                              ) : (
+                                <span className="material-symbols-outlined text-sm text-[#a0a0a0]">check_box_outline_blank</span>
                               )}
                             </div>
                           </button>
@@ -414,6 +498,60 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
               )}
             </div>
           </div>
+
+          {/* Selected Tag Active Filter Status Banner */}
+          {selectedTagFilters.length > 0 && (
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 bg-white border border-[#e2e2e2] px-3.5 py-2.5 rounded-xl text-xs shadow-2xs">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-semibold text-[#000000]">선택한 태그 ({selectedTagFilters.length}개):</span>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {selectedTagFilters.map((tag) => (
+                    <span
+                      key={tag}
+                      className="inline-flex items-center gap-1 bg-[#f3f3f4] text-[#000000] border border-[#c4c7c7]/50 px-2.5 py-0.5 rounded-full text-[11px] font-medium"
+                    >
+                      #{normalizeTag(tag)}
+                      <button
+                        onClick={() => toggleTagFilter(tag)}
+                        className="text-[#747878] hover:text-[#000000] font-bold cursor-pointer"
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  ))}
+                </div>
+                <div className="flex items-center gap-1 ml-1">
+                  <span className="text-[11px] text-[#747878]">조합:</span>
+                  <button
+                    onClick={() => setTagFilterMode('OR')}
+                    className={`text-[10px] font-bold px-2 py-0.5 rounded-md transition-all cursor-pointer ${
+                      tagFilterMode === 'OR'
+                        ? 'bg-indigo-600 text-white'
+                        : 'bg-[#f3f3f4] text-[#555] hover:bg-[#e2e2e2]'
+                    }`}
+                  >
+                    OR (하나라도)
+                  </button>
+                  <button
+                    onClick={() => setTagFilterMode('AND')}
+                    className={`text-[10px] font-bold px-2 py-0.5 rounded-md transition-all cursor-pointer ${
+                      tagFilterMode === 'AND'
+                        ? 'bg-indigo-600 text-white'
+                        : 'bg-[#f3f3f4] text-[#555] hover:bg-[#e2e2e2]'
+                    }`}
+                  >
+                    AND (모두)
+                  </button>
+                </div>
+              </div>
+              <button
+                onClick={clearTagFilters}
+                className="text-[11px] text-rose-600 font-semibold hover:underline cursor-pointer shrink-0"
+              >
+                필터 초기화
+              </button>
+            </div>
+          )}
 
           {/* Sorting Option Buttons (Placed right below tag bar on the right) */}
           <div className="flex items-center justify-end gap-1.5 mt-3">
@@ -460,7 +598,7 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
             <button
               onClick={() => {
                 onSelectCategory(null);
-                setSelectedTagFilter(null);
+                clearTagFilters();
               }}
               className="px-4 py-2 bg-[#000000] text-white text-xs font-medium rounded-lg hover:bg-opacity-90 cursor-pointer"
             >
@@ -475,8 +613,9 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
                   key={photo.id}
                   onClick={() => {
                     let label = '';
-                    if (selectedTagFilter) {
-                      label = `태그: #${selectedTagFilter.replace(/^#/, '')}`;
+                    if (selectedTagFilters.length > 0) {
+                      const tagsStr = selectedTagFilters.map((t) => `#${normalizeTag(t)}`).join(', ');
+                      label = `태그(${tagFilterMode}): ${tagsStr}`;
                     } else if (selectedCategoryId) {
                       label = `카테고리: ${activeCategory?.name || ''}`;
                     } else if (searchQuery.trim()) {
