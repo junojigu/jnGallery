@@ -186,29 +186,30 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
     };
 
     const handleWheel = (e: WheelEvent) => {
-      // Don't trigger if user is scrolling inside sidebar description panel or any modal/popup
-      const target = e.target as HTMLElement;
-      if (
-        target &&
-        (target.closest('aside') ||
-          target.closest('.fixed') ||
-          target.closest('[role="dialog"]') ||
-          target.closest('input, textarea, select, form'))
-      ) {
-        return;
-      }
-
       // Don't trigger if any modal overlay is open in the app
       if (document.querySelector('.fixed.inset-0:not(.group\\/theater), [role="dialog"]')) {
         return;
       }
 
-      const now = Date.now();
-      if (now - lastWheelTimeRef.current < 300) return; // 300ms cooldown
+      // Don't trigger if user is scrolling inside sidebar description panel or form inputs
+      const target = e.target as HTMLElement;
+      if (
+        target &&
+        (target.closest('aside') ||
+          target.closest('form') ||
+          target.closest('[role="dialog"]') ||
+          target.closest('input, textarea, select, button'))
+      ) {
+        return;
+      }
 
-      if (Math.abs(e.deltaY) > 15 || Math.abs(e.deltaX) > 15) {
+      const now = Date.now();
+      if (now - lastWheelTimeRef.current < 250) return; // 250ms cooldown
+
+      const delta = Math.abs(e.deltaY) > Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+      if (Math.abs(delta) > 10) {
         lastWheelTimeRef.current = now;
-        if (e.deltaY > 0 || e.deltaX > 0) {
+        if (delta > 0) {
           handleNext();
         } else {
           handlePrev();
@@ -227,18 +228,18 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
   const touchStartXRef = React.useRef<number | null>(null);
 
   const handleTouchStart = (e: React.TouchEvent) => {
+    if (document.querySelector('.fixed.inset-0:not(.group\\/theater), [role="dialog"]')) {
+      touchStartXRef.current = null;
+      return;
+    }
     const target = e.target as HTMLElement;
     if (
       target &&
       (target.closest('aside') ||
-        target.closest('.fixed') ||
+        target.closest('form') ||
         target.closest('[role="dialog"]') ||
-        target.closest('input, textarea, select, form'))
+        target.closest('input, textarea, select, button'))
     ) {
-      touchStartXRef.current = null;
-      return;
-    }
-    if (document.querySelector('.fixed.inset-0:not(.group\\/theater), [role="dialog"]')) {
       touchStartXRef.current = null;
       return;
     }
@@ -369,7 +370,7 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
           {/* 3. Fullscreen Button */}
           <button
             onClick={handleEnterFullscreen}
-            title="전체 화면으로 감상하기 (F / F11)"
+            title="전체 화면으로 감상하기 / F11"
             aria-label="Fullscreen view"
             className="w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center border border-[#c4c7c7] text-[#444748] hover:border-[#000000] hover:text-[#000000] transition-colors cursor-pointer"
           >
