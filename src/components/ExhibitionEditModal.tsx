@@ -456,8 +456,8 @@ export const ExhibitionEditModal: React.FC<ExhibitionEditModalProps> = ({
               )}
 
               {formData.introImage && (
-                <div className="mt-2 h-28 rounded-lg overflow-hidden border border-[#c4c7c7]">
-                  <img src={formData.introImage} alt="Cover Preview" className="w-full h-full object-cover" />
+                <div className="mt-2 relative h-48 sm:h-56 w-full rounded-xl overflow-hidden border border-[#c4c7c7] bg-[#1a1c1e] flex items-center justify-center p-2 shadow-inner">
+                  <img src={formData.introImage} alt="Cover Preview" className="max-w-full max-h-full w-auto h-auto object-contain rounded-md shadow-xs" />
                 </div>
               )}
             </div>

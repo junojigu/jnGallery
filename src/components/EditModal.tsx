@@ -310,6 +310,11 @@ export const EditModal: React.FC<EditModalProps> = ({
                   onChange={(e) => setUrl(e.target.value)}
                   className="w-full bg-[#f9f9f9] border border-[#c4c7c7] rounded-lg px-3 py-2 text-sm text-[#000000]"
                 />
+                {url && (
+                  <div className="mt-2 relative w-full h-48 sm:h-56 rounded-xl overflow-hidden border border-[#c4c7c7] bg-[#1a1c1e] flex items-center justify-center p-2 shadow-inner">
+                    <img src={url} alt="Photo Preview" className="max-w-full max-h-full w-auto h-auto object-contain rounded-md shadow-xs" />
+                  </div>
+                )}
               </div>
 
               <div>

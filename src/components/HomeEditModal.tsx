@@ -203,8 +203,8 @@ export const HomeEditModal: React.FC<HomeEditModalProps> = ({
                 </button>
               </div>
               {formData.heroImage && (
-                <div className="relative h-28 w-full rounded-lg overflow-hidden border border-[#c4c7c7]/40 mt-2">
-                  <img src={formData.heroImage} alt="Hero Preview" className="w-full h-full object-cover" />
+                <div className="relative h-48 sm:h-56 w-full rounded-xl overflow-hidden border border-[#c4c7c7] mt-2 bg-[#1a1c1e] flex items-center justify-center p-2 shadow-inner">
+                  <img src={formData.heroImage} alt="Hero Preview" className="max-w-full max-h-full w-auto h-auto object-contain rounded-md shadow-xs" />
                 </div>
               )}
             </div>
@@ -325,8 +325,8 @@ export const HomeEditModal: React.FC<HomeEditModalProps> = ({
                   </button>
                 </div>
                 {formData.aboutImage1 && (
-                  <div className="relative h-24 w-full rounded-lg overflow-hidden border border-[#c4c7c7]/40">
-                    <img src={formData.aboutImage1} alt="About 1 Preview" className="w-full h-full object-cover" />
+                  <div className="relative h-40 sm:h-44 w-full rounded-xl overflow-hidden border border-[#c4c7c7] mt-2 bg-[#1a1c1e] flex items-center justify-center p-2 shadow-inner">
+                    <img src={formData.aboutImage1} alt="About 1 Preview" className="max-w-full max-h-full w-auto h-auto object-contain rounded-md shadow-xs" />
                   </div>
                 )}
               </div>
@@ -352,8 +352,8 @@ export const HomeEditModal: React.FC<HomeEditModalProps> = ({
                   </button>
                 </div>
                 {formData.aboutImage2 && (
-                  <div className="relative h-24 w-full rounded-lg overflow-hidden border border-[#c4c7c7]/40">
-                    <img src={formData.aboutImage2} alt="About 2 Preview" className="w-full h-full object-cover" />
+                  <div className="relative h-40 sm:h-44 w-full rounded-xl overflow-hidden border border-[#c4c7c7] mt-2 bg-[#1a1c1e] flex items-center justify-center p-2 shadow-inner">
+                    <img src={formData.aboutImage2} alt="About 2 Preview" className="max-w-full max-h-full w-auto h-auto object-contain rounded-md shadow-xs" />
                   </div>
                 )}
               </div>
