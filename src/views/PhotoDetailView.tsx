@@ -144,6 +144,23 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
   // Keyboard Navigation & Shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger if user is typing in form inputs
+      const activeEl = document.activeElement;
+      if (
+        activeEl &&
+        (activeEl.tagName === 'INPUT' ||
+          activeEl.tagName === 'TEXTAREA' ||
+          activeEl.tagName === 'SELECT' ||
+          (activeEl as HTMLElement).isContentEditable)
+      ) {
+        return;
+      }
+
+      // Don't trigger if any modal/popup overlay is active
+      if (document.querySelector('.fixed.inset-0:not(.group\\/theater), [role="dialog"]')) {
+        return;
+      }
+
       if (e.key === 'ArrowLeft') {
         handlePrev();
       } else if (e.key === 'ArrowRight') {
@@ -169,9 +186,22 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
     };
 
     const handleWheel = (e: WheelEvent) => {
-      // Don't trigger if user is scrolling inside sidebar description panel
+      // Don't trigger if user is scrolling inside sidebar description panel or any modal/popup
       const target = e.target as HTMLElement;
-      if (target && target.closest('aside')) return;
+      if (
+        target &&
+        (target.closest('aside') ||
+          target.closest('.fixed') ||
+          target.closest('[role="dialog"]') ||
+          target.closest('input, textarea, select, form'))
+      ) {
+        return;
+      }
+
+      // Don't trigger if any modal overlay is open in the app
+      if (document.querySelector('.fixed.inset-0:not(.group\\/theater), [role="dialog"]')) {
+        return;
+      }
 
       const now = Date.now();
       if (now - lastWheelTimeRef.current < 300) return; // 300ms cooldown
@@ -197,6 +227,21 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
   const touchStartXRef = React.useRef<number | null>(null);
 
   const handleTouchStart = (e: React.TouchEvent) => {
+    const target = e.target as HTMLElement;
+    if (
+      target &&
+      (target.closest('aside') ||
+        target.closest('.fixed') ||
+        target.closest('[role="dialog"]') ||
+        target.closest('input, textarea, select, form'))
+    ) {
+      touchStartXRef.current = null;
+      return;
+    }
+    if (document.querySelector('.fixed.inset-0:not(.group\\/theater), [role="dialog"]')) {
+      touchStartXRef.current = null;
+      return;
+    }
     touchStartXRef.current = e.touches[0].clientX;
   };
 
