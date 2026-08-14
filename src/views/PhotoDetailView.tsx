@@ -100,9 +100,7 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
     setIsControlsVisible(true);
     if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
     controlsTimeoutRef.current = setTimeout(() => {
-      if (isPlaying) {
-        setIsControlsVisible(false);
-      }
+      setIsControlsVisible(false);
     }, 2500);
   };
 
@@ -414,7 +412,7 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
               onClick={handlePrev}
               aria-label="Previous photo"
               title="이전 사진"
-              className="absolute left-2 md:left-8 top-1/2 -translate-y-1/2 w-11 h-11 md:w-12 md:h-12 rounded-full bg-white/90 hover:bg-white text-[#1a1c1c] backdrop-blur-md shadow-xl flex items-center justify-center hover:scale-110 active:scale-95 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-all duration-300 z-20 cursor-pointer border border-[#c4c7c7]/40"
+              className="absolute left-2 md:left-8 top-1/2 -translate-y-1/2 w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/20 hover:bg-white/45 text-[#1a1c1c] backdrop-blur-md shadow-lg flex items-center justify-center hover:scale-105 active:scale-95 opacity-0 group-hover:opacity-100 transition-all duration-300 z-20 cursor-pointer border border-white/40"
             >
               <span className="material-symbols-outlined text-[24px]">chevron_left</span>
             </button>
@@ -424,7 +422,7 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
               onClick={handleNext}
               aria-label="Next photo"
               title="다음 사진"
-              className="absolute right-2 md:right-8 top-1/2 -translate-y-1/2 w-11 h-11 md:w-12 md:h-12 rounded-full bg-white/90 hover:bg-white text-[#1a1c1c] backdrop-blur-md shadow-xl flex items-center justify-center hover:scale-110 active:scale-95 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-all duration-300 z-20 cursor-pointer border border-[#c4c7c7]/40"
+              className="absolute right-2 md:right-8 top-1/2 -translate-y-1/2 w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/20 hover:bg-white/45 text-[#1a1c1c] backdrop-blur-md shadow-lg flex items-center justify-center hover:scale-105 active:scale-95 opacity-0 group-hover:opacity-100 transition-all duration-300 z-20 cursor-pointer border border-white/40"
             >
               <span className="material-symbols-outlined text-[24px]">chevron_right</span>
             </button>
@@ -587,6 +585,7 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
         <div
           onMouseMove={handleMouseMoveTheater}
           onClick={handleMouseMoveTheater}
+          onTouchStart={handleMouseMoveTheater}
           className="fixed inset-0 z-50 bg-black flex flex-col justify-between overflow-hidden select-none animate-fadeIn group/theater"
         >
           {/* Subtle Glassmorphism Slideshow Progress Bar at Top */}
@@ -703,32 +702,43 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
 
           {/* Center Main Stage (Image Area) */}
           <div
-            onTouchStart={handleTouchStart}
+            onTouchStart={(e) => {
+              handleTouchStart(e);
+              handleMouseMoveTheater();
+            }}
             onTouchEnd={handleTouchEnd}
             className="relative flex-1 w-full flex items-center justify-center z-10 p-2 md:p-6 overflow-hidden select-none"
           >
             {/* Nav Prev Button */}
             <button
-              onClick={handlePrev}
+              onClick={(e) => {
+                e.stopPropagation();
+                handlePrev();
+                handleMouseMoveTheater();
+              }}
               aria-label="Previous photo"
               title="이전 사진 (Left Arrow)"
-              className={`absolute left-2 md:left-8 top-1/2 -translate-y-1/2 w-11 h-11 md:w-14 md:h-14 rounded-full bg-black/50 hover:bg-black/80 text-white backdrop-blur-xl border border-white/20 flex items-center justify-center transition-all duration-300 cursor-pointer z-30 hover:scale-110 active:scale-95 shadow-2xl ${
-                isControlsVisible ? 'opacity-100' : 'opacity-80 lg:opacity-0 pointer-events-auto'
+              className={`absolute left-2 md:left-8 top-1/2 -translate-y-1/2 w-10 h-10 md:w-13 md:h-13 rounded-full bg-white/10 hover:bg-white/25 text-white/80 hover:text-white backdrop-blur-md border border-white/20 flex items-center justify-center transition-all duration-300 cursor-pointer z-30 hover:scale-105 active:scale-95 shadow-xl ${
+                isControlsVisible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
               }`}
             >
-              <span className="material-symbols-outlined text-[28px] md:text-[32px]">chevron_left</span>
+              <span className="material-symbols-outlined text-[26px] md:text-[30px]">chevron_left</span>
             </button>
 
             {/* Nav Next Button */}
             <button
-              onClick={handleNext}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleNext();
+                handleMouseMoveTheater();
+              }}
               aria-label="Next photo"
               title="다음 사진 (Right Arrow)"
-              className={`absolute right-2 md:right-8 top-1/2 -translate-y-1/2 w-11 h-11 md:w-14 md:h-14 rounded-full bg-black/50 hover:bg-black/80 text-white backdrop-blur-xl border border-white/20 flex items-center justify-center transition-all duration-300 cursor-pointer z-30 hover:scale-110 active:scale-95 shadow-2xl ${
-                isControlsVisible ? 'opacity-100' : 'opacity-80 lg:opacity-0 pointer-events-auto'
+              className={`absolute right-2 md:right-8 top-1/2 -translate-y-1/2 w-10 h-10 md:w-13 md:h-13 rounded-full bg-white/10 hover:bg-white/25 text-white/80 hover:text-white backdrop-blur-md border border-white/20 flex items-center justify-center transition-all duration-300 cursor-pointer z-30 hover:scale-105 active:scale-95 shadow-xl ${
+                isControlsVisible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
               }`}
             >
-              <span className="material-symbols-outlined text-[28px] md:text-[32px]">chevron_right</span>
+              <span className="material-symbols-outlined text-[26px] md:text-[30px]">chevron_right</span>
             </button>
 
             {/* Main Center Image */}
