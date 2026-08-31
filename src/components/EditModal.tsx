@@ -152,66 +152,72 @@ export const EditModal: React.FC<EditModalProps> = ({
     );
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (target.type === 'category') {
-      if (!name.trim()) return;
-      onSaveCategory({
-        ...target.data,
-        name: name.trim(),
-        icon: icon.trim() || 'folder',
-        description: description.trim()
-      });
-    } else if (target.type === 'tag') {
-      if (!name.trim()) return;
-      const formatted = name.startsWith('#') ? name.trim() : `#${name.trim()}`;
-      onSaveTag({
-        ...target.data,
-        name: formatted
-      });
-    } else if (target.type === 'photo') {
-      if (!title.trim() || !url.trim()) return;
-      let finalTags = [...photoTags];
-      if (customTag.trim()) {
-        const parts = customTag.split(/[\s,]+/).filter(Boolean);
-        parts.forEach((part) => {
-          const formatted = part.startsWith('#') ? part.trim() : `#${part.trim()}`;
-          if (
-            formatted.length > 1 &&
-            !finalTags.some(
-              (ft) => ft.replace(/^#/, '').toLowerCase() === formatted.replace(/^#/, '').toLowerCase()
-            )
-          ) {
-            finalTags.push(formatted);
-          }
+  const handleSubmit = (e?: React.FormEvent) => {
+    if (e) {
+      e.preventDefault();
+    }
+    try {
+      if (target.type === 'category') {
+        if (!name.trim()) return;
+        onSaveCategory({
+          ...target.data,
+          name: name.trim(),
+          icon: icon.trim() || 'folder',
+          description: description.trim()
+        });
+      } else if (target.type === 'tag') {
+        if (!name.trim()) return;
+        const formatted = name.startsWith('#') ? name.trim() : `#${name.trim()}`;
+        onSaveTag({
+          ...target.data,
+          name: formatted
+        });
+      } else if (target.type === 'photo') {
+        let finalTags = [...photoTags];
+        if (customTag.trim()) {
+          const parts = customTag.split(/[\s,]+/).filter(Boolean);
+          parts.forEach((part) => {
+            const formatted = part.startsWith('#') ? part.trim() : `#${part.trim()}`;
+            if (
+              formatted.length > 1 &&
+              !finalTags.some(
+                (ft) => ft.replace(/^#/, '').toLowerCase() === formatted.replace(/^#/, '').toLowerCase()
+              )
+            ) {
+              finalTags.push(formatted);
+            }
+          });
+        }
+
+        // Deduplicate and normalize all tags
+        const cleanTags = Array.from(
+          new Set(
+            finalTags
+              .map((t) => (t.startsWith('#') ? t.trim() : `#${t.trim()}`))
+              .filter((t) => t.length > 1)
+          )
+        );
+
+        const matchedCat = categories.find((c) => c.id === categoryId);
+        onSavePhoto({
+          ...target.data,
+          title: title.trim() || target.data.title || 'Untitled',
+          description: description.trim(),
+          url: url.trim() || target.data.url,
+          categoryId: categoryId || target.data.categoryId || categories[0]?.id || 'cat-nature',
+          category: matchedCat?.name || categoryId || target.data.category || 'Nature',
+          tags: cleanTags,
+          location: location.trim(),
+          camera: camera.trim(),
+          exif: exif.trim(),
+          featured
         });
       }
-
-      // Deduplicate and normalize all tags
-      const cleanTags = Array.from(
-        new Set(
-          finalTags
-            .map((t) => (t.startsWith('#') ? t.trim() : `#${t.trim()}`))
-            .filter((t) => t.length > 1)
-        )
-      );
-
-      const matchedCat = categories.find((c) => c.id === categoryId);
-      onSavePhoto({
-        ...target.data,
-        title: title.trim(),
-        description: description.trim(),
-        url: url.trim(),
-        categoryId,
-        category: matchedCat?.name || categoryId,
-        tags: cleanTags,
-        location: location.trim(),
-        camera: camera.trim(),
-        exif: exif.trim(),
-        featured
-      });
+    } catch (err) {
+      console.error('Error saving in EditModal:', err);
+    } finally {
+      onClose();
     }
-    onClose();
   };
 
   const handleToggleTag = (tagName: string) => {
@@ -670,12 +676,6 @@ export const EditModal: React.FC<EditModalProps> = ({
             </button>
             <button
               type="submit"
-              onClick={(e) => {
-                if (target.type === 'photo' && (!title.trim() || !url.trim())) {
-                  return;
-                }
-                handleSubmit(e);
-              }}
               className="px-5 py-2 bg-[#000000] text-white rounded-lg text-xs font-medium hover:bg-opacity-90 active:scale-95 cursor-pointer transition-all flex items-center gap-1.5 shadow-xs"
             >
               <span>저장 (Save Changes)</span>

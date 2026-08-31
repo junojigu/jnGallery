@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Category, Tag, Photo, ActiveView, HomeSettings, ExhibitionInfo, Exhibition } from './types';
 import { INITIAL_CATEGORIES, INITIAL_TAGS, INITIAL_PHOTOS, INITIAL_HOME_SETTINGS, INITIAL_EXHIBITION_INFO, INITIAL_EXHIBITIONS } from './initialData';
 
@@ -256,6 +256,18 @@ export default function App() {
     | null
   >(null);
 
+  // Global Toast Notification State
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const toastTimeoutRef = useRef<any>(null);
+
+  const showToast = (msg: string) => {
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    setToastMessage(msg);
+    toastTimeoutRef.current = setTimeout(() => {
+      setToastMessage(null);
+    }, 3500);
+  };
+
   // Google Sheets Auto Sync Effect
   const [isSheetSyncing, setIsSheetSyncing] = useState(false);
   const [sheetSyncStatus, setSheetSyncStatus] = useState<'idle' | 'success' | 'error'>('idle');
@@ -288,14 +300,29 @@ export default function App() {
             const normalized = normalizePhotoList(data.photos, loadedCategories);
             setPhotos((prevPhotos) => {
               const featuredMap = new Map<string, boolean>();
+              const localPhotosMap = new Map<string, Photo>();
               prevPhotos.forEach((p) => {
+                localPhotosMap.set(p.id, p);
+                if (p.url) localPhotosMap.set(p.url, p);
                 if (p.featured) {
                   featuredMap.set(p.id, true);
                   if (p.url) featuredMap.set(p.url, true);
                 }
               });
+
+              // Check if user has made recent local edits
+              const lastLocalUpdate = localStorage.getItem('pm_photos_updated_at');
+              const hasRecentLocalEdits = lastLocalUpdate && (Date.now() - Number(lastLocalUpdate) < 120000);
+
               const updated = normalized.map((p) => {
                 const sheetItem = data.photos.find((sp: any) => sp.id === p.id);
+                const localItem = localPhotosMap.get(p.id) || (p.url ? localPhotosMap.get(p.url) : null);
+
+                // If local photo was edited recently in browser, preserve local tags/data
+                if (hasRecentLocalEdits && localItem) {
+                  return { ...p, ...localItem };
+                }
+
                 // If Google Sheets explicit boolean isn't present, check if local state had it featured
                 if ((!sheetItem || sheetItem.featured === undefined || sheetItem.featured === null) &&
                     (featuredMap.get(p.id) || (p.url && featuredMap.get(p.url)))) {
@@ -387,7 +414,7 @@ export default function App() {
         method: 'POST',
         mode: 'no-cors',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'text/plain;charset=utf-8',
         },
         body: JSON.stringify(payload),
       });
@@ -570,6 +597,9 @@ export default function App() {
   const handleSaveHomeSettings = (newSettings: HomeSettings) => {
     requireAdmin(() => {
       setHomeSettings(newSettings);
+      try {
+        localStorage.setItem('pm_home_settings', JSON.stringify(newSettings));
+      } catch {}
       syncToGoogleSheet({
         action: 'saveHomeSettings',
         homeSettings: newSettings,
@@ -577,6 +607,7 @@ export default function App() {
         categories,
         tags,
       });
+      showToast('✨ 메인 페이지 설정이 저장되었습니다.');
     }, '랜딩 페이지 수정은 관리자 로그인 후 가능합니다.');
   };
 
@@ -621,7 +652,9 @@ export default function App() {
       };
       const nextCats = [...categories, newCat];
       setCategories(nextCats);
+      try { localStorage.setItem('pm_categories', JSON.stringify(nextCats)); } catch {}
       syncToGoogleSheet({ categories: nextCats });
+      showToast('✨ 새 카테고리가 추가되었습니다.');
     }, '카테고리 추가는 관리자 전용 기능입니다.');
   };
 
@@ -629,7 +662,9 @@ export default function App() {
     requireAdmin(() => {
       const nextCats = categories.map((c) => (c.id === updatedCat.id ? updatedCat : c));
       setCategories(nextCats);
+      try { localStorage.setItem('pm_categories', JSON.stringify(nextCats)); } catch {}
       syncToGoogleSheet({ categories: nextCats });
+      showToast('✨ 카테고리 수정 사항이 저장되었습니다.');
     }, '카테고리 수정은 관리자 전용 기능입니다.');
   };
 
@@ -645,8 +680,10 @@ export default function App() {
           if (selectedCategoryId === cat.id) {
             setSelectedCategoryId(null);
           }
+          try { localStorage.setItem('pm_categories', JSON.stringify(nextCats)); } catch {}
           setDeleteModal((m) => ({ ...m, isOpen: false }));
           syncToGoogleSheet({ categories: nextCats });
+          showToast('🗑️ 카테고리가 삭제되었습니다.');
         }
       });
     }, '카테고리 삭제는 관리자 전용 기능입니다.');
@@ -655,7 +692,9 @@ export default function App() {
   const handleReorderCategories = (reorderedCats: Category[]) => {
     requireAdmin(() => {
       setCategories(reorderedCats);
+      try { localStorage.setItem('pm_categories', JSON.stringify(reorderedCats)); } catch {}
       syncToGoogleSheet({ categories: reorderedCats });
+      showToast('✨ 카테고리 순서가 변경되었습니다.');
     }, '카테고리 순서 변경은 관리자 전용 기능입니다.');
   };
 
@@ -670,7 +709,9 @@ export default function App() {
       };
       const nextTags = [...tags, newTag];
       setTags(nextTags);
+      try { localStorage.setItem('pm_tags', JSON.stringify(nextTags)); } catch {}
       syncToGoogleSheet({ tags: nextTags });
+      showToast('✨ 새 태그가 추가되었습니다.');
     }, '태그 추가는 관리자 전용 기능입니다.');
   };
 
@@ -679,6 +720,7 @@ export default function App() {
       const oldTag = tags.find((t) => t.id === updatedTag.id);
       const nextTags = tags.map((t) => (t.id === updatedTag.id ? updatedTag : t));
       setTags(nextTags);
+      try { localStorage.setItem('pm_tags', JSON.stringify(nextTags)); } catch {}
 
       let nextPhotos = photos;
       if (oldTag && oldTag.name.toLowerCase() !== updatedTag.name.toLowerCase()) {
@@ -690,9 +732,14 @@ export default function App() {
           return { ...p, tags: updatedPhotoTags };
         });
         setPhotos(nextPhotos);
+        try {
+          localStorage.setItem('pm_photos', JSON.stringify(nextPhotos));
+          localStorage.setItem('pm_photos_updated_at', Date.now().toString());
+        } catch {}
       }
 
       syncToGoogleSheet({ tags: nextTags, photos: nextPhotos });
+      showToast('✨ 태그 수정 사항이 저장되었습니다.');
     }, '태그 수정은 관리자 전용 기능입니다.');
   };
 
@@ -705,6 +752,7 @@ export default function App() {
         onConfirm: () => {
           const nextTags = tags.filter((t) => t.id !== tag.id);
           setTags(nextTags);
+          try { localStorage.setItem('pm_tags', JSON.stringify(nextTags)); } catch {}
 
           // Remove deleted tag from all photos
           const nextPhotos = photos.map((p) => {
@@ -715,9 +763,14 @@ export default function App() {
             return { ...p, tags: filteredTags };
           });
           setPhotos(nextPhotos);
+          try {
+            localStorage.setItem('pm_photos', JSON.stringify(nextPhotos));
+            localStorage.setItem('pm_photos_updated_at', Date.now().toString());
+          } catch {}
 
           setDeleteModal((m) => ({ ...m, isOpen: false }));
           syncToGoogleSheet({ tags: nextTags, photos: nextPhotos });
+          showToast('🗑️ 태그가 삭제되었습니다.');
         }
       });
     }, '태그 삭제는 관리자 전용 기능입니다.');
@@ -726,7 +779,9 @@ export default function App() {
   const handleReorderTags = (reorderedTags: Tag[]) => {
     requireAdmin(() => {
       setTags(reorderedTags);
+      try { localStorage.setItem('pm_tags', JSON.stringify(reorderedTags)); } catch {}
       syncToGoogleSheet({ tags: reorderedTags });
+      showToast('✨ 태그 순서가 변경되었습니다.');
     }, '태그 순서 변경은 관리자 전용 기능입니다.');
   };
 
@@ -738,6 +793,10 @@ export default function App() {
     };
     const nextPhotos = [newPhoto, ...photos];
     setPhotos(nextPhotos);
+    try {
+      localStorage.setItem('pm_photos', JSON.stringify(nextPhotos));
+      localStorage.setItem('pm_photos_updated_at', Date.now().toString());
+    } catch {}
 
     // Auto register newly introduced tags to global tags state
     let nextTags = [...tags];
@@ -755,55 +814,57 @@ export default function App() {
 
     if (tagsUpdated) {
       setTags(nextTags);
+      try { localStorage.setItem('pm_tags', JSON.stringify(nextTags)); } catch {}
     }
 
     setActiveView('gallery');
     syncToGoogleSheet({ photos: nextPhotos, tags: tagsUpdated ? nextTags : tags });
+    showToast('✨ 새 사진이 성공적으로 등록되었습니다.');
   };
 
   const handleSavePhoto = (updatedPhoto: Photo) => {
-    requireAdmin(() => {
-      const nextPhotos = photos.map((p) => (p.id === updatedPhoto.id ? updatedPhoto : p));
-      setPhotos(nextPhotos);
-      if (selectedPhoto?.id === updatedPhoto.id) {
-        setSelectedPhoto(updatedPhoto);
-      }
-      if (activePhotoList) {
-        setActivePhotoList((prev) =>
-          prev ? prev.map((p) => (p.id === updatedPhoto.id ? updatedPhoto : p)) : null
-        );
-      }
+    const nextPhotos = photos.map((p) => (p.id === updatedPhoto.id ? updatedPhoto : p));
+    setPhotos(nextPhotos);
+    if (selectedPhoto?.id === updatedPhoto.id) {
+      setSelectedPhoto(updatedPhoto);
+    }
+    if (activePhotoList) {
+      setActivePhotoList((prev) =>
+        prev ? prev.map((p) => (p.id === updatedPhoto.id ? updatedPhoto : p)) : null
+      );
+    }
 
+    try {
+      localStorage.setItem('pm_photos', JSON.stringify(nextPhotos));
+      localStorage.setItem('pm_photos_updated_at', Date.now().toString());
+    } catch {}
+
+    // Auto register new tags if any
+    let nextTags = [...tags];
+    let tagsUpdated = false;
+    (updatedPhoto.tags || []).forEach((t) => {
+      const formatted = t.startsWith('#') ? t.trim() : `#${t.trim()}`;
+      if (
+        formatted.length > 1 &&
+        !nextTags.some((gt) => gt.name.toLowerCase() === formatted.toLowerCase())
+      ) {
+        nextTags.push({
+          id: `tag-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+          name: formatted,
+        });
+        tagsUpdated = true;
+      }
+    });
+
+    if (tagsUpdated) {
+      setTags(nextTags);
       try {
-        localStorage.setItem('pm_photos', JSON.stringify(nextPhotos));
+        localStorage.setItem('pm_tags', JSON.stringify(nextTags));
       } catch {}
+    }
 
-      // Auto register new tags if any
-      let nextTags = [...tags];
-      let tagsUpdated = false;
-      (updatedPhoto.tags || []).forEach((t) => {
-        const formatted = t.startsWith('#') ? t.trim() : `#${t.trim()}`;
-        if (
-          formatted.length > 1 &&
-          !nextTags.some((gt) => gt.name.toLowerCase() === formatted.toLowerCase())
-        ) {
-          nextTags.push({
-            id: `tag-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-            name: formatted,
-          });
-          tagsUpdated = true;
-        }
-      });
-
-      if (tagsUpdated) {
-        setTags(nextTags);
-        try {
-          localStorage.setItem('pm_tags', JSON.stringify(nextTags));
-        } catch {}
-      }
-
-      syncToGoogleSheet({ photos: nextPhotos, tags: tagsUpdated ? nextTags : tags });
-    }, '사진 수정은 관리자 전용 기능입니다.');
+    syncToGoogleSheet({ photos: nextPhotos, tags: tagsUpdated ? nextTags : tags });
+    showToast('✨ 사진 정보 및 태그 수정 사항이 성공적으로 저장되었습니다.');
   };
 
   const handleDeletePhoto = (photo: Photo) => {
@@ -826,9 +887,11 @@ export default function App() {
           }
           try {
             localStorage.setItem('pm_photos', JSON.stringify(nextPhotos));
+            localStorage.setItem('pm_photos_updated_at', Date.now().toString());
           } catch {}
           setDeleteModal((m) => ({ ...m, isOpen: false }));
           syncToGoogleSheet({ photos: nextPhotos });
+          showToast('🗑️ 사진이 삭제되었습니다.');
         }
       });
     }, '사진 삭제는 관리자 전용 기능입니다.');
@@ -1068,6 +1131,21 @@ export default function App() {
         photos={photos}
         homeSettings={homeSettings}
       />
+
+      {/* Global Toast Notification */}
+      {toastMessage && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] max-w-[90vw] md:max-w-md bg-[#111111] text-white text-xs md:text-sm font-medium px-4 py-3 rounded-xl shadow-2xl border border-[#333333] flex items-center gap-2.5 animate-in fade-in slide-in-from-bottom-4 duration-200">
+          <span className="material-symbols-outlined text-emerald-400 text-base shrink-0">check_circle</span>
+          <span className="flex-1 leading-snug">{toastMessage}</span>
+          <button
+            type="button"
+            onClick={() => setToastMessage(null)}
+            className="text-white/60 hover:text-white shrink-0 ml-1 p-0.5 rounded transition-colors"
+          >
+            <span className="material-symbols-outlined text-sm">close</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }
