@@ -768,6 +768,15 @@ export default function App() {
       if (selectedPhoto?.id === updatedPhoto.id) {
         setSelectedPhoto(updatedPhoto);
       }
+      if (activePhotoList) {
+        setActivePhotoList((prev) =>
+          prev ? prev.map((p) => (p.id === updatedPhoto.id ? updatedPhoto : p)) : null
+        );
+      }
+
+      try {
+        localStorage.setItem('pm_photos', JSON.stringify(nextPhotos));
+      } catch {}
 
       // Auto register new tags if any
       let nextTags = [...tags];
@@ -788,6 +797,9 @@ export default function App() {
 
       if (tagsUpdated) {
         setTags(nextTags);
+        try {
+          localStorage.setItem('pm_tags', JSON.stringify(nextTags));
+        } catch {}
       }
 
       syncToGoogleSheet({ photos: nextPhotos, tags: tagsUpdated ? nextTags : tags });
@@ -807,6 +819,14 @@ export default function App() {
             setSelectedPhoto(null);
             setActiveView('gallery');
           }
+          if (activePhotoList) {
+            setActivePhotoList((prev) =>
+              prev ? prev.filter((p) => p.id !== photo.id) : null
+            );
+          }
+          try {
+            localStorage.setItem('pm_photos', JSON.stringify(nextPhotos));
+          } catch {}
           setDeleteModal((m) => ({ ...m, isOpen: false }));
           syncToGoogleSheet({ photos: nextPhotos });
         }

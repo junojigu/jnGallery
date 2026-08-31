@@ -176,11 +176,26 @@ export const EditModal: React.FC<EditModalProps> = ({
         const parts = customTag.split(/[\s,]+/).filter(Boolean);
         parts.forEach((part) => {
           const formatted = part.startsWith('#') ? part.trim() : `#${part.trim()}`;
-          if (formatted.length > 1 && !finalTags.includes(formatted)) {
+          if (
+            formatted.length > 1 &&
+            !finalTags.some(
+              (ft) => ft.replace(/^#/, '').toLowerCase() === formatted.replace(/^#/, '').toLowerCase()
+            )
+          ) {
             finalTags.push(formatted);
           }
         });
       }
+
+      // Deduplicate and normalize all tags
+      const cleanTags = Array.from(
+        new Set(
+          finalTags
+            .map((t) => (t.startsWith('#') ? t.trim() : `#${t.trim()}`))
+            .filter((t) => t.length > 1)
+        )
+      );
+
       const matchedCat = categories.find((c) => c.id === categoryId);
       onSavePhoto({
         ...target.data,
@@ -189,7 +204,7 @@ export const EditModal: React.FC<EditModalProps> = ({
         url: url.trim(),
         categoryId,
         category: matchedCat?.name || categoryId,
-        tags: finalTags,
+        tags: cleanTags,
         location: location.trim(),
         camera: camera.trim(),
         exif: exif.trim(),
@@ -200,11 +215,19 @@ export const EditModal: React.FC<EditModalProps> = ({
   };
 
   const handleToggleTag = (tagName: string) => {
-    if (photoTags.includes(tagName)) {
-      setPhotoTags(photoTags.filter(t => t !== tagName));
+    const norm = tagName.replace(/^#/, '').trim().toLowerCase();
+    const isSelected = photoTags.some((pt) => pt.replace(/^#/, '').trim().toLowerCase() === norm);
+    if (isSelected) {
+      setPhotoTags(photoTags.filter((pt) => pt.replace(/^#/, '').trim().toLowerCase() !== norm));
     } else {
-      setPhotoTags([...photoTags, tagName]);
+      const displayTag = tagName.startsWith('#') ? tagName.trim() : `#${tagName.trim()}`;
+      setPhotoTags([...photoTags, displayTag]);
     }
+  };
+
+  const handleRemoveTag = (tagName: string) => {
+    const norm = tagName.replace(/^#/, '').trim().toLowerCase();
+    setPhotoTags((prev) => prev.filter((pt) => pt.replace(/^#/, '').trim().toLowerCase() !== norm));
   };
 
   const handleAddCustomTag = (e: React.KeyboardEvent) => {
@@ -214,7 +237,10 @@ export const EditModal: React.FC<EditModalProps> = ({
       const updated = [...photoTags];
       parts.forEach((part) => {
         const formatted = part.startsWith('#') ? part.trim() : `#${part.trim()}`;
-        if (formatted.length > 1 && !updated.includes(formatted)) {
+        if (
+          formatted.length > 1 &&
+          !updated.some((t) => t.replace(/^#/, '').toLowerCase() === formatted.replace(/^#/, '').toLowerCase())
+        ) {
           updated.push(formatted);
         }
       });
@@ -400,7 +426,7 @@ export const EditModal: React.FC<EditModalProps> = ({
                             <span>{display}</span>
                             <button
                               type="button"
-                              onClick={() => setPhotoTags(photoTags.filter((pt) => pt !== t))}
+                              onClick={() => handleRemoveTag(t)}
                               className="w-4 h-4 rounded-full flex items-center justify-center hover:bg-white/20 text-white/70 hover:text-white transition-colors cursor-pointer"
                               title="태그 삭제"
                             >
