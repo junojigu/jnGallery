@@ -1,6 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Category, Tag, Photo } from '../types';
 import { extractExifFromFile, extractExifFromUrl } from '../utils/exif';
+
+// Front preset tags preserved at the beginning (blackandwhite ~ landscape)
+const FIXED_FRONT_ORDER = ['blackwhite', 'film', 'landscape', 'longexposure', 'macro'];
+
+const isFixedFrontTag = (name: string) => {
+  const norm = name.replace(/^#/, '').toLowerCase().trim();
+  return FIXED_FRONT_ORDER.includes(norm);
+};
 
 interface UploadModalProps {
   isOpen: boolean;
@@ -34,6 +42,37 @@ export const UploadModal: React.FC<UploadModalProps> = ({
   const [isUploadingCloudinary, setIsUploadingCloudinary] = useState(false);
   const [cloudinaryError, setCloudinaryError] = useState<string | null>(null);
   const [exifNotice, setExifNotice] = useState<string | null>(null);
+
+  // Memoized sorted tag list: Preset tags first (in fixed order), then remaining in Korean '가나다' order
+  const sortedAvailableTags = useMemo(() => {
+    const rawList = Array.from(new Set([...tags.map((t) => t.name), ...selectedTagNames]));
+    const front: string[] = [];
+    const rest: string[] = [];
+
+    rawList.forEach((t) => {
+      if (isFixedFrontTag(t)) {
+        front.push(t);
+      } else {
+        rest.push(t);
+      }
+    });
+
+    // Sort front tags by FIXED_FRONT_ORDER (e.g. blackwhite ~ landscape)
+    front.sort((a, b) => {
+      const idxA = FIXED_FRONT_ORDER.indexOf(a.replace(/^#/, '').toLowerCase().trim());
+      const idxB = FIXED_FRONT_ORDER.indexOf(b.replace(/^#/, '').toLowerCase().trim());
+      return (idxA === -1 ? 999 : idxA) - (idxB === -1 ? 999 : idxB);
+    });
+
+    // Sort rest in Korean '가나다' order
+    rest.sort((a, b) => {
+      const nameA = a.replace(/^#/, '').trim();
+      const nameB = b.replace(/^#/, '').trim();
+      return nameA.localeCompare(nameB, 'ko', { numeric: true });
+    });
+
+    return [...front, ...rest];
+  }, [tags, selectedTagNames]);
 
   if (!isOpen) return null;
 
@@ -402,7 +441,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
                 Tags
               </label>
               <div className="flex flex-wrap gap-1.5 mb-2">
-                {Array.from(new Set([...tags.map((t) => t.name), ...selectedTagNames])).map((tagName) => {
+                {sortedAvailableTags.map((tagName) => {
                   const isSelected = selectedTagNames.includes(tagName);
                   return (
                     <button
@@ -411,7 +450,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
                       onClick={() => handleToggleTag(tagName)}
                       className={`text-xs px-2.5 py-1 rounded-full transition-colors cursor-pointer ${
                         isSelected
-                          ? 'bg-[#000000] text-white'
+                          ? 'bg-[#000000] text-white font-medium'
                           : 'bg-[#f3f3f4] text-[#444748] hover:bg-[#e2e2e2]'
                       }`}
                     >

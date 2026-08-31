@@ -136,7 +136,9 @@ export const EditModal: React.FC<EditModalProps> = ({
 
   const customAppliedTags = photoTags.filter((t) => !isPrimaryTag(t));
 
-  const sortedAllTags = [...tags].sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+  const sortedAllTags = [...tags].sort((a, b) => 
+    a.name.replace(/^#/, '').localeCompare(b.name.replace(/^#/, ''), 'ko', { numeric: true })
+  );
 
   const matchingSystemTags = tags.filter((t) => {
     if (!customTag.trim()) return false;
