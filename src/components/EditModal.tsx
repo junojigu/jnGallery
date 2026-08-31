@@ -472,17 +472,17 @@ export const EditModal: React.FC<EditModalProps> = ({
                     </button>
                   </div>
 
-                  {/* Alphabetical All Tags Dropdown Popover */}
+                  {/* Alphabetical All Tags Collapsible Box */}
                   {isAllTagsDropdownOpen && (
-                    <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-[#c4c7c7]/80 rounded-xl shadow-lg z-30 max-h-48 overflow-y-auto p-2.5 custom-scrollbar">
-                      <div className="text-[11px] font-semibold text-[#747878] mb-2 flex items-center justify-between border-b border-[#f0f0f0] pb-1.5">
+                    <div className="mt-2 bg-[#f9f9f9] border border-[#c4c7c7]/80 rounded-xl p-3">
+                      <div className="text-[11px] font-semibold text-[#747878] mb-2 flex items-center justify-between border-b border-[#e2e2e2] pb-1.5">
                         <span>전체 태그 목록 (가나다순)</span>
                         <span className="text-[10px] text-[#a0a0a5] font-normal">총 {sortedAllTags.length}개</span>
                       </div>
                       {sortedAllTags.length === 0 ? (
                         <p className="text-xs text-[#8e8e93] py-2 text-center">등록된 태그가 없습니다.</p>
                       ) : (
-                        <div className="flex flex-wrap gap-1.5">
+                        <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
                           {sortedAllTags.map((t) => {
                             const isSelected = photoTags.some(
                               (pt) => pt.replace(/^#/, '').toLowerCase() === t.name.replace(/^#/, '').toLowerCase()
@@ -504,8 +504,8 @@ export const EditModal: React.FC<EditModalProps> = ({
                                 }}
                                 className={`text-xs px-2.5 py-1 rounded-full cursor-pointer transition-all border ${
                                   isSelected
-                                    ? 'bg-[#000000] text-white border-[#000000] font-medium'
-                                    : 'bg-[#f5f5f5] text-[#444748] border-[#e2e2e2] hover:bg-[#e2e2e2]'
+                                    ? 'bg-[#000000] text-white border-[#000000] font-medium shadow-xs'
+                                    : 'bg-white text-[#444748] border-[#c4c7c7]/60 hover:bg-[#e2e2e2]'
                                 }`}
                               >
                                 {t.name.startsWith('#') ? t.name : `#${t.name}`}
@@ -660,7 +660,7 @@ export const EditModal: React.FC<EditModalProps> = ({
           </div>
 
           {/* Sticky Bottom Buttons Footer */}
-          <div className="flex justify-end items-center gap-3 pt-4 mt-3 border-t border-[#e2e2e2] shrink-0 bg-white">
+          <div className="flex justify-end items-center gap-3 pt-4 mt-3 border-t border-[#e2e2e2] shrink-0 bg-white relative z-50">
             <button
               type="button"
               onClick={onClose}
@@ -670,7 +670,13 @@ export const EditModal: React.FC<EditModalProps> = ({
             </button>
             <button
               type="submit"
-              className="px-5 py-2 bg-[#000000] text-white rounded-lg text-xs font-medium hover:bg-opacity-90 cursor-pointer transition-opacity flex items-center gap-1.5"
+              onClick={(e) => {
+                if (target.type === 'photo' && (!title.trim() || !url.trim())) {
+                  return;
+                }
+                handleSubmit(e);
+              }}
+              className="px-5 py-2 bg-[#000000] text-white rounded-lg text-xs font-medium hover:bg-opacity-90 active:scale-95 cursor-pointer transition-all flex items-center gap-1.5 shadow-xs"
             >
               <span>저장 (Save Changes)</span>
             </button>

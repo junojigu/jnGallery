@@ -541,7 +541,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
           </div>
 
           {/* Sticky Actions Footer */}
-          <div className="flex justify-end items-center gap-3 pt-4 mt-3 border-t border-[#e2e2e2] shrink-0 bg-white">
+          <div className="flex justify-end items-center gap-3 pt-4 mt-3 border-t border-[#e2e2e2] shrink-0 bg-white relative z-50">
             <button
               type="button"
               onClick={onClose}
@@ -552,7 +552,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
             <button
               type="submit"
               disabled={!title.trim() || !imageUrl.trim()}
-              className="px-6 py-2 bg-[#000000] text-white rounded-lg text-xs font-medium hover:bg-opacity-90 disabled:opacity-40 transition-opacity cursor-pointer"
+              className="px-6 py-2 bg-[#000000] text-white rounded-lg text-xs font-medium hover:bg-opacity-90 disabled:opacity-40 transition-opacity cursor-pointer active:scale-95 shadow-xs"
             >
               저장 (Publish Photo)
             </button>
