@@ -163,6 +163,37 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
     onReorderTags?.(updated);
   };
 
+  // Sort tags alphabetically (가나다 순 / ABC) with priority pinned tags at the top
+  const handleSortTagsKorean = () => {
+    const pinnedTagsPriority = ['landscape', 'film', 'longexposure', 'blackwhite'];
+
+    const getPinnedIndex = (tagName: string) => {
+      const clean = tagName.replace(/^#/, '').toLowerCase();
+      return pinnedTagsPriority.indexOf(clean);
+    };
+
+    const sortedTags = [...tags].sort((a, b) => {
+      const pinA = getPinnedIndex(a.name);
+      const pinB = getPinnedIndex(b.name);
+
+      // If both are pinned tags, sort by pinned priority order
+      if (pinA !== -1 && pinB !== -1) {
+        return pinA - pinB;
+      }
+      // If only A is pinned, A comes first
+      if (pinA !== -1) return -1;
+      // If only B is pinned, B comes first
+      if (pinB !== -1) return 1;
+
+      // Otherwise, sort alphabetically (Korean 가나다 / English ABC)
+      const cleanA = a.name.replace(/^#/, '');
+      const cleanB = b.name.replace(/^#/, '');
+      return cleanA.localeCompare(cleanB, 'ko-KR', { sensitivity: 'base', numeric: true });
+    });
+
+    onReorderTags?.(sortedTags);
+  };
+
   return (
     <div className="flex-grow flex w-full max-w-[1280px] mx-auto relative min-h-screen">
       {/* SideNav */}
@@ -304,11 +335,20 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
         <section id="tags-section" className="bg-white rounded-xl ambient-shadow p-6 md:p-8 border border-[#c4c7c7]/30">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <h2 className="font-sans text-lg font-semibold text-[#000000]">Tags</h2>
                 <span className="text-[11px] text-[#747878] bg-[#f0f0f0] px-2 py-0.5 rounded-md font-medium">
                   드래그로 순서 변경 가능
                 </span>
+                <button
+                  type="button"
+                  onClick={handleSortTagsKorean}
+                  title="Landscape, Film, LongExposure, BlackWhite 상단 고정 후 가나다 순 정렬"
+                  className="flex items-center gap-1 text-[11px] font-semibold text-[#1a1c1c] bg-[#eaeaea] hover:bg-[#000000] hover:text-white px-2.5 py-1 rounded-md transition-all cursor-pointer border border-[#d0d0d0] shadow-xs active:scale-95"
+                >
+                  <span className="material-symbols-outlined text-[15px]">sort_by_alpha</span>
+                  <span>가나다 순 정렬 (고정 태그 상단)</span>
+                </button>
               </div>
               <p className="font-sans text-xs text-[#444748] mt-1">
                 Granular keywords for precise searching. Drag items or use arrows to rearrange.

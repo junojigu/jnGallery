@@ -38,6 +38,11 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
   const [showInfoOverlay, setShowInfoOverlay] = useState(true);
   const [isControlsVisible, setIsControlsVisible] = useState(true);
   const [isZoomed, setIsZoomed] = useState(false);
+  const [panPosition, setPanPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartRef = React.useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const initialPanRef = React.useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const isDraggingMovedRef = React.useRef<boolean>(false);
   const controlsTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
 
   // Compute effective photos list based on internal tag filter or initial list
@@ -135,9 +140,87 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
   useEffect(() => {
     if (!isFullscreen) {
       setIsZoomed(false);
+      setPanPosition({ x: 0, y: 0 });
       setIsControlsVisible(true);
     }
   }, [isFullscreen]);
+
+  // Reset zoom & pan when photo changes
+  useEffect(() => {
+    setIsZoomed(false);
+    setPanPosition({ x: 0, y: 0 });
+    setIsDragging(false);
+  }, [photo.id]);
+
+  // Pan & Drag Handlers for Zoomed Fullscreen Image
+  const handleZoomMouseDown = (e: React.MouseEvent) => {
+    if (!isZoomed) return;
+    setIsDragging(true);
+    isDraggingMovedRef.current = false;
+    dragStartRef.current = { x: e.clientX, y: e.clientY };
+    initialPanRef.current = { ...panPosition };
+  };
+
+  const handleZoomMouseMove = (e: React.MouseEvent) => {
+    if (!isZoomed || !isDragging) return;
+    const deltaX = e.clientX - dragStartRef.current.x;
+    const deltaY = e.clientY - dragStartRef.current.y;
+    if (Math.abs(deltaX) > 4 || Math.abs(deltaY) > 4) {
+      isDraggingMovedRef.current = true;
+    }
+    // Constrain pan within reasonable boundaries
+    const maxPanX = window.innerWidth * 0.8;
+    const maxPanY = window.innerHeight * 0.8;
+    setPanPosition({
+      x: Math.max(-maxPanX, Math.min(maxPanX, initialPanRef.current.x + deltaX)),
+      y: Math.max(-maxPanY, Math.min(maxPanY, initialPanRef.current.y + deltaY)),
+    });
+  };
+
+  const handleZoomMouseUp = () => {
+    if (!isZoomed) return;
+    setIsDragging(false);
+  };
+
+  const handleZoomTouchStart = (e: React.TouchEvent) => {
+    if (!isZoomed) return;
+    if (e.touches.length === 1) {
+      setIsDragging(true);
+      isDraggingMovedRef.current = false;
+      dragStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      initialPanRef.current = { ...panPosition };
+    }
+  };
+
+  const handleZoomTouchMove = (e: React.TouchEvent) => {
+    if (!isZoomed || !isDragging || e.touches.length !== 1) return;
+    const deltaX = e.touches[0].clientX - dragStartRef.current.x;
+    const deltaY = e.touches[0].clientY - dragStartRef.current.y;
+    if (Math.abs(deltaX) > 4 || Math.abs(deltaY) > 4) {
+      isDraggingMovedRef.current = true;
+    }
+    const maxPanX = window.innerWidth * 0.8;
+    const maxPanY = window.innerHeight * 0.8;
+    setPanPosition({
+      x: Math.max(-maxPanX, Math.min(maxPanX, initialPanRef.current.x + deltaX)),
+      y: Math.max(-maxPanY, Math.min(maxPanY, initialPanRef.current.y + deltaY)),
+    });
+  };
+
+  const handleZoomTouchEnd = () => {
+    if (!isZoomed) return;
+    setIsDragging(false);
+  };
+
+  const toggleZoom = () => {
+    if (isZoomed) {
+      setIsZoomed(false);
+      setPanPosition({ x: 0, y: 0 });
+    } else {
+      setIsZoomed(true);
+      setPanPosition({ x: 0, y: 0 });
+    }
+  };
 
   // Keyboard Navigation & Shortcuts
   useEffect(() => {
@@ -675,17 +758,18 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
 
               {/* Zoom Toggle */}
               <button
-                onClick={() => setIsZoomed(!isZoomed)}
-                title={isZoomed ? '원래 크기로' : '확대해서 보기'}
-                className={`w-9 h-9 rounded-full flex items-center justify-center backdrop-blur-xl transition-all cursor-pointer border ${
+                onClick={toggleZoom}
+                title={isZoomed ? '원래 크기로 축소' : '2배 확대 및 드래그 보기'}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium backdrop-blur-xl transition-all cursor-pointer border ${
                   isZoomed
-                    ? 'bg-white/30 text-white border-white/40'
+                    ? 'bg-amber-400/90 text-black border-amber-300 shadow-lg shadow-amber-400/20 font-semibold'
                     : 'bg-black/40 text-white/80 border-white/15 hover:bg-black/60 hover:text-white'
                 }`}
               >
                 <span className="material-symbols-outlined text-[18px]">
                   {isZoomed ? 'zoom_out' : 'zoom_in'}
                 </span>
+                <span className="hidden sm:inline">{isZoomed ? '축소 (Reset)' : '확대 (2.0x)'}</span>
               </button>
 
               {/* Close Button */}
@@ -703,56 +787,105 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
           {/* Center Main Stage (Image Area) */}
           <div
             onTouchStart={(e) => {
-              handleTouchStart(e);
+              if (isZoomed) {
+                handleZoomTouchStart(e);
+              } else {
+                handleTouchStart(e);
+              }
               handleMouseMoveTheater();
             }}
-            onTouchEnd={handleTouchEnd}
-            className="relative flex-1 w-full flex items-center justify-center z-10 p-2 md:p-6 overflow-hidden select-none"
+            onTouchMove={(e) => {
+              if (isZoomed) {
+                handleZoomTouchMove(e);
+              }
+            }}
+            onTouchEnd={(e) => {
+              if (isZoomed) {
+                handleZoomTouchEnd();
+              } else {
+                handleTouchEnd(e);
+              }
+            }}
+            onMouseDown={handleZoomMouseDown}
+            onMouseMove={(e) => {
+              handleZoomMouseMove(e);
+              handleMouseMoveTheater();
+            }}
+            onMouseUp={handleZoomMouseUp}
+            onMouseLeave={handleZoomMouseUp}
+            className={`relative flex-1 w-full flex items-center justify-center z-10 p-2 md:p-6 overflow-hidden select-none ${
+              isZoomed ? (isDragging ? 'cursor-grabbing' : 'cursor-grab') : ''
+            }`}
           >
-            {/* Nav Prev Button */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handlePrev();
-                handleMouseMoveTheater();
-              }}
-              aria-label="Previous photo"
-              title="이전 사진 (Left Arrow)"
-              className={`absolute left-2 md:left-8 top-1/2 -translate-y-1/2 w-10 h-10 md:w-13 md:h-13 rounded-full bg-white/10 hover:bg-white/25 text-white/80 hover:text-white backdrop-blur-md border border-white/20 flex items-center justify-center transition-all duration-300 cursor-pointer z-30 hover:scale-105 active:scale-95 shadow-xl ${
-                isControlsVisible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
-              }`}
-            >
-              <span className="material-symbols-outlined text-[26px] md:text-[30px]">chevron_left</span>
-            </button>
+            {/* Nav Prev Button (Hidden when zoomed for distraction-free pan, or visible with auto-hide) */}
+            {!isZoomed && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handlePrev();
+                  handleMouseMoveTheater();
+                }}
+                aria-label="Previous photo"
+                title="이전 사진 (Left Arrow)"
+                className={`absolute left-2 md:left-8 top-1/2 -translate-y-1/2 w-10 h-10 md:w-13 md:h-13 rounded-full bg-white/10 hover:bg-white/25 text-white/80 hover:text-white backdrop-blur-md border border-white/20 flex items-center justify-center transition-all duration-300 cursor-pointer z-30 hover:scale-105 active:scale-95 shadow-xl ${
+                  isControlsVisible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[26px] md:text-[30px]">chevron_left</span>
+              </button>
+            )}
 
             {/* Nav Next Button */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleNext();
-                handleMouseMoveTheater();
-              }}
-              aria-label="Next photo"
-              title="다음 사진 (Right Arrow)"
-              className={`absolute right-2 md:right-8 top-1/2 -translate-y-1/2 w-10 h-10 md:w-13 md:h-13 rounded-full bg-white/10 hover:bg-white/25 text-white/80 hover:text-white backdrop-blur-md border border-white/20 flex items-center justify-center transition-all duration-300 cursor-pointer z-30 hover:scale-105 active:scale-95 shadow-xl ${
-                isControlsVisible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
-              }`}
-            >
-              <span className="material-symbols-outlined text-[26px] md:text-[30px]">chevron_right</span>
-            </button>
+            {!isZoomed && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleNext();
+                  handleMouseMoveTheater();
+                }}
+                aria-label="Next photo"
+                title="다음 사진 (Right Arrow)"
+                className={`absolute right-2 md:right-8 top-1/2 -translate-y-1/2 w-10 h-10 md:w-13 md:h-13 rounded-full bg-white/10 hover:bg-white/25 text-white/80 hover:text-white backdrop-blur-md border border-white/20 flex items-center justify-center transition-all duration-300 cursor-pointer z-30 hover:scale-105 active:scale-95 shadow-xl ${
+                  isControlsVisible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[26px] md:text-[30px]">chevron_right</span>
+              </button>
+            )}
+
+            {/* Zoom Pan Floating Guide Badge */}
+            {isZoomed && (
+              <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 bg-black/60 border border-white/20 text-white/90 text-[11px] md:text-xs px-3.5 py-1.5 rounded-full backdrop-blur-md shadow-xl flex items-center gap-1.5 pointer-events-none animate-fadeIn">
+                <span className="material-symbols-outlined text-sm text-amber-300">pan_tool</span>
+                <span>마우스 또는 손가락으로 드래그하여 좌우상하를 자유롭게 탐색하세요 (더블클릭/클릭 시 축소)</span>
+              </div>
+            )}
 
             {/* Main Center Image */}
             <div
               key={photo.id}
-              className={`relative max-w-full max-h-full flex items-center justify-center transition-all duration-500 animate-smooth-fade ${
-                isZoomed ? 'cursor-zoom-out scale-125' : 'cursor-zoom-in'
+              style={{
+                transform: isZoomed
+                  ? `translate3d(${panPosition.x}px, ${panPosition.y}px, 0) scale(1.9)`
+                  : 'translate3d(0, 0, 0) scale(1)',
+                transition: isDragging ? 'none' : 'transform 0.35s cubic-bezier(0.25, 1, 0.5, 1)',
+                touchAction: isZoomed ? 'none' : 'auto',
+              }}
+              className={`relative max-w-full max-h-full flex items-center justify-center will-change-transform ${
+                isZoomed ? 'cursor-grab active:cursor-grabbing' : 'cursor-zoom-in'
               }`}
-              onClick={() => setIsZoomed(!isZoomed)}
+              onClick={(e) => {
+                if (isDraggingMovedRef.current) {
+                  return; // Don't toggle zoom if user was panning
+                }
+                toggleZoom();
+              }}
             >
               <img
                 src={photo.url}
                 alt={photo.title}
-                className="max-w-full max-h-[85vh] object-contain rounded-md shadow-[0_25px_60px_rgba(0,0,0,0.9)]"
+                draggable={false}
+                className="max-w-full max-h-[85vh] object-contain rounded-md shadow-[0_25px_60px_rgba(0,0,0,0.9)] select-none pointer-events-none"
               />
             </div>
           </div>
