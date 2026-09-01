@@ -669,7 +669,7 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
           onMouseMove={handleMouseMoveTheater}
           onClick={handleMouseMoveTheater}
           onTouchStart={handleMouseMoveTheater}
-          className="fixed inset-0 z-50 bg-black flex flex-col justify-between overflow-hidden select-none animate-fadeIn group/theater"
+          className="fixed inset-0 z-50 bg-black flex items-center justify-center overflow-hidden select-none animate-fadeIn group/theater"
         >
           {/* Subtle Glassmorphism Slideshow Progress Bar at Top */}
           {isPlaying && (
@@ -684,32 +684,27 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
 
           {/* Top Control Bar (Glassmorphism & Auto-hides) */}
           <header
-            className={`relative z-40 w-full flex items-center justify-between px-6 py-4 bg-gradient-to-b from-black/80 via-black/40 to-transparent transition-opacity duration-500 ${
-              isControlsVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
+            className={`absolute top-0 left-0 right-0 z-40 flex items-center justify-between px-6 py-4 bg-gradient-to-b from-black/80 via-black/40 to-transparent transition-opacity duration-500 pointer-events-none ${
+              isControlsVisible ? 'opacity-100' : 'opacity-0'
             }`}
           >
-            {/* Left Counter Badge */}
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 bg-black/40 border border-white/15 text-white/90 text-xs px-3.5 py-1.5 rounded-full backdrop-blur-xl shadow-lg">
-                <span className="material-symbols-outlined text-sm text-white/70">photo_library</span>
-                <span className="font-medium text-white/90">
-                  {effectivePhotos.length > 0 ? `${currentIndex + 1} / ${effectivePhotos.length}` : '0'}
-                </span>
-                {currentFilterText && (
-                  <span className="text-white/70 border-l border-white/20 pl-2">
-                    {currentFilterText}
-                  </span>
-                )}
-              </div>
+            {/* Left Filter & Info Badge */}
+            <div className="flex items-center gap-3 pointer-events-auto">
+              {currentFilterText && (
+                <div className="flex items-center gap-2 bg-black/50 border border-white/15 text-white/90 text-xs px-3.5 py-1.5 rounded-full backdrop-blur-xl shadow-lg">
+                  <span className="material-symbols-outlined text-sm text-amber-300">filter_alt</span>
+                  <span className="font-medium text-white/90">{currentFilterText}</span>
+                </div>
+              )}
 
               {/* Keyboard Tip */}
-              <span className="hidden lg:inline-block text-[11px] text-white/40 font-light">
-                [Space] 재생/정지 • [F] 전체화면 • [←/→] 이동
+              <span className="hidden lg:inline-block text-[11px] text-white/50 font-light drop-shadow-md">
+                [Space] 슬라이드쇼 • [←/→] 이동 • [Esc] 닫기
               </span>
             </div>
 
             {/* Right Action Controls */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 pointer-events-auto">
               {/* Slideshow Play / Pause */}
               <button
                 onClick={() => setIsPlaying(!isPlaying)}
@@ -784,7 +779,7 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
             </div>
           </header>
 
-          {/* Center Main Stage (Image Area) */}
+          {/* Center Main Stage (Vertically & Horizontally Perfectly Centered Image Area) */}
           <div
             onTouchStart={(e) => {
               if (isZoomed) {
@@ -813,7 +808,7 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
             }}
             onMouseUp={handleZoomMouseUp}
             onMouseLeave={handleZoomMouseUp}
-            className={`relative flex-1 w-full flex items-center justify-center z-10 p-2 md:p-6 overflow-hidden select-none ${
+            className={`w-full h-full flex items-center justify-center z-10 p-0 md:p-4 overflow-hidden select-none ${
               isZoomed ? (isDragging ? 'cursor-grabbing' : 'cursor-grab') : ''
             }`}
           >
@@ -827,7 +822,7 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
                 }}
                 aria-label="Previous photo"
                 title="이전 사진 (Left Arrow)"
-                className={`absolute left-2 md:left-8 top-1/2 -translate-y-1/2 w-10 h-10 md:w-13 md:h-13 rounded-full bg-white/10 hover:bg-white/25 text-white/80 hover:text-white backdrop-blur-md border border-white/20 flex items-center justify-center transition-all duration-300 cursor-pointer z-30 hover:scale-105 active:scale-95 shadow-xl ${
+                className={`absolute left-3 md:left-8 top-1/2 -translate-y-1/2 w-10 h-10 md:w-13 md:h-13 rounded-full bg-white/10 hover:bg-white/25 text-white/80 hover:text-white backdrop-blur-md border border-white/20 flex items-center justify-center transition-all duration-300 cursor-pointer z-30 hover:scale-105 active:scale-95 shadow-xl ${
                   isControlsVisible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
                 }`}
               >
@@ -845,7 +840,7 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
                 }}
                 aria-label="Next photo"
                 title="다음 사진 (Right Arrow)"
-                className={`absolute right-2 md:right-8 top-1/2 -translate-y-1/2 w-10 h-10 md:w-13 md:h-13 rounded-full bg-white/10 hover:bg-white/25 text-white/80 hover:text-white backdrop-blur-md border border-white/20 flex items-center justify-center transition-all duration-300 cursor-pointer z-30 hover:scale-105 active:scale-95 shadow-xl ${
+                className={`absolute right-3 md:right-8 top-1/2 -translate-y-1/2 w-10 h-10 md:w-13 md:h-13 rounded-full bg-white/10 hover:bg-white/25 text-white/80 hover:text-white backdrop-blur-md border border-white/20 flex items-center justify-center transition-all duration-300 cursor-pointer z-30 hover:scale-105 active:scale-95 shadow-xl ${
                   isControlsVisible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
                 }`}
               >
@@ -855,7 +850,7 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
 
             {/* Zoom Pan Floating Guide Badge */}
             {isZoomed && (
-              <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 bg-black/60 border border-white/20 text-white/90 text-[11px] md:text-xs px-3.5 py-1.5 rounded-full backdrop-blur-md shadow-xl flex items-center gap-1.5 pointer-events-none animate-fadeIn">
+              <div className="absolute top-20 left-1/2 -translate-x-1/2 z-30 bg-black/60 border border-white/20 text-white/90 text-[11px] md:text-xs px-3.5 py-1.5 rounded-full backdrop-blur-md shadow-xl flex items-center gap-1.5 pointer-events-none animate-fadeIn">
                 <span className="material-symbols-outlined text-sm text-amber-300">pan_tool</span>
                 <span>마우스 또는 손가락으로 드래그하여 좌우상하를 자유롭게 탐색하세요 (더블클릭/클릭 시 축소)</span>
               </div>
@@ -871,7 +866,7 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
                 transition: isDragging ? 'none' : 'transform 0.35s cubic-bezier(0.25, 1, 0.5, 1)',
                 touchAction: isZoomed ? 'none' : 'auto',
               }}
-              className={`relative max-w-full max-h-full flex items-center justify-center will-change-transform ${
+              className={`relative w-full h-full flex items-center justify-center will-change-transform ${
                 isZoomed ? 'cursor-grab active:cursor-grabbing' : 'cursor-zoom-in'
               }`}
               onClick={(e) => {
@@ -885,52 +880,37 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
                 src={photo.url}
                 alt={photo.title}
                 draggable={false}
-                className="max-w-full max-h-[85vh] object-contain rounded-md shadow-[0_25px_60px_rgba(0,0,0,0.9)] select-none pointer-events-none"
+                className="max-w-full max-h-[92vh] object-contain rounded-md shadow-[0_25px_60px_rgba(0,0,0,0.9)] select-none pointer-events-none"
               />
             </div>
           </div>
 
-          {/* Bottom Caption & Mini Filmstrip */}
-          <footer className="relative z-40 w-full flex flex-col items-center gap-2 px-6 pb-4 pt-4 pointer-events-none group/fullscreenBottom">
-            {/* Title-Only Minimal Borderless Caption (Always visible when enabled) */}
-            {showInfoOverlay && (
-              <div
-                key={photo.id}
-                className="px-6 py-1 text-white flex items-center justify-center animate-smooth-fade max-w-3xl pointer-events-auto"
-              >
-                <h2 className="font-serif text-base md:text-xl font-normal text-white/95 tracking-wide text-center drop-shadow-[0_2px_12px_rgba(0,0,0,0.95)] truncate">
-                  {photo.title}
-                </h2>
-              </div>
-            )}
-
-            {/* Mini Filmstrip Thumbnails Bar (Reveals ONLY when hovering at bottom area) */}
-            <div className="w-full flex justify-center pointer-events-auto pt-2 pb-1">
-              <div
-                className="max-w-xl w-full flex items-center justify-center gap-2 overflow-x-auto p-2 bg-black/60 border border-white/15 rounded-2xl backdrop-blur-2xl scrollbar-hide shadow-2xl opacity-0 translate-y-6 pointer-events-none group-hover/fullscreenBottom:opacity-100 group-hover/fullscreenBottom:translate-y-0 group-hover/fullscreenBottom:pointer-events-auto transition-all duration-300 ease-out"
-              >
-                {effectivePhotos.map((item) => {
-                  const isCurrent = item.id === photo.id;
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onSelectPhoto(item);
-                      }}
-                      className={`flex-shrink-0 w-12 h-12 rounded-xl overflow-hidden border-2 transition-all cursor-pointer ${
-                        isCurrent
-                          ? 'border-white scale-105 shadow-[0_0_12px_rgba(255,255,255,0.4)] opacity-100'
-                          : 'border-transparent opacity-40 hover:opacity-100 hover:border-white/40'
-                      }`}
-                    >
-                      <img src={item.url} alt={item.title} className="w-full h-full object-cover" />
-                    </button>
-                  );
-                })}
-              </div>
+          {/* Bottom Title Overlay (Centered, non-intrusive) */}
+          {showInfoOverlay && (
+            <div
+              key={photo.id}
+              className={`absolute bottom-5 left-1/2 -translate-x-1/2 z-40 px-6 py-2 pointer-events-none transition-opacity duration-500 ${
+                isControlsVisible ? 'opacity-100' : 'opacity-0'
+              }`}
+            >
+              <h2 className="font-serif text-base md:text-lg font-light text-white/90 tracking-wide text-center drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)] truncate max-w-xl">
+                {photo.title}
+              </h2>
             </div>
-          </footer>
+          )}
+
+          {/* Bottom Right Minimal Photo Index Counter (e.g., 1/10) */}
+          <div
+            className={`absolute bottom-5 right-5 z-40 pointer-events-none transition-opacity duration-500 ${
+              isControlsVisible ? 'opacity-100' : 'opacity-30 hover:opacity-100'
+            }`}
+          >
+            <div className="bg-black/50 border border-white/15 text-white/80 text-xs font-mono font-medium px-3 py-1.5 rounded-full backdrop-blur-md shadow-lg flex items-center gap-1.5">
+              <span className="text-white font-semibold">{currentIndex + 1}</span>
+              <span className="text-white/40">/</span>
+              <span className="text-white/70">{effectivePhotos.length}</span>
+            </div>
+          </div>
         </div>
       )}
     </div>
