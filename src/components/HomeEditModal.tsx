@@ -112,6 +112,26 @@ export const HomeEditModal: React.FC<HomeEditModalProps> = ({
                 className="w-5 h-5 accent-[#000000] rounded cursor-pointer shrink-0"
               />
             </div>
+
+            {/* Exhibition Page Show/Hide Control */}
+            <div className="bg-[#f0f0f2] p-3.5 rounded-xl border border-[#c4c7c7] flex items-center justify-between gap-4 mt-2">
+              <div className="space-y-0.5">
+                <label htmlFor="showExhibitionPageToggle" className="text-xs font-bold text-[#000000] flex items-center gap-1.5 cursor-pointer">
+                  <span className="material-symbols-outlined text-base text-purple-600">auto_stories</span>
+                  <span>작품전시 페이지 메뉴 표시</span>
+                </label>
+                <p className="text-[11px] text-[#747878]">
+                  체크 시 상단 헤더 메뉴 및 모바일 메뉴에 '작품 전시' 페이지 탭이 표시됩니다. (체크 해제 시 숨김)
+                </p>
+              </div>
+              <input
+                id="showExhibitionPageToggle"
+                type="checkbox"
+                checked={formData.showExhibitionPage !== false}
+                onChange={(e) => setFormData((prev) => ({ ...prev, showExhibitionPage: e.target.checked }))}
+                className="w-5 h-5 accent-[#000000] rounded cursor-pointer shrink-0"
+              />
+            </div>
           </div>
 
           {/* Section 0.5: External Storage & Database Services */}

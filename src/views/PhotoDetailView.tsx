@@ -368,31 +368,35 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
   return (
     <div className="bg-[#f9f9f9] text-[#1a1c1c] h-screen max-h-screen overflow-hidden flex flex-col font-sans">
       {/* Header Action Bar */}
-      <header className="w-full flex-shrink-0 flex justify-between items-center px-4 md:px-10 py-3.5 bg-[#f9f9f9] border-b border-[#e2e2e2]/60 z-40">
-        <div className="flex items-center gap-3">
+      <header className="w-full flex-shrink-0 flex justify-between items-center px-3 sm:px-6 md:px-10 py-2.5 sm:py-3.5 bg-[#f9f9f9] border-b border-[#e2e2e2]/60 z-40 gap-2">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <button
             onClick={onBack}
-            className="flex items-center gap-2 text-[#444748] hover:text-[#000000] transition-colors group cursor-pointer"
+            title={backButtonText}
+            aria-label={backButtonText}
+            className="flex items-center justify-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-full bg-[#f0f0f2] hover:bg-[#e4e4e7] active:bg-[#d4d4d8] text-[#1a1c1c] transition-all group cursor-pointer shrink-0 border border-[#c4c7c7]/50 shadow-xs"
           >
-            <span className="material-symbols-outlined text-[20px] group-hover:-translate-x-1 transition-transform">
+            <span className="material-symbols-outlined text-[20px] sm:text-[19px] group-hover:-translate-x-0.5 transition-transform shrink-0">
               arrow_back
             </span>
-            <span className="font-semibold text-sm">{backButtonText}</span>
+            <span className="hidden sm:inline font-semibold text-xs sm:text-sm whitespace-nowrap">
+              {backButtonText}
+            </span>
           </button>
 
           {/* Active Filter Badge */}
           {currentFilterText && (
-            <div className="flex items-center gap-2 bg-[#000000] text-white text-xs px-3 py-1.5 rounded-full shadow-sm">
-              <span className="material-symbols-outlined text-sm text-amber-400">filter_alt</span>
-              <span className="font-semibold">{currentFilterText}</span>
-              <span className="text-white/70">
+            <div className="flex items-center gap-1.5 bg-[#000000] text-white text-[11px] sm:text-xs px-2.5 py-1 rounded-full shadow-sm max-w-[130px] sm:max-w-xs truncate shrink-0">
+              <span className="material-symbols-outlined text-xs sm:text-sm text-amber-400 shrink-0">filter_alt</span>
+              <span className="font-semibold truncate">{currentFilterText}</span>
+              <span className="text-white/70 text-[10px] sm:text-xs shrink-0">
                 ({effectivePhotos.length > 0 ? `${currentIndex + 1}/${effectivePhotos.length}` : '0'})
               </span>
               <button
                 onClick={handleClearFilter}
                 title="필터 해제 (전체 사진 보기)"
                 aria-label="필터 해제"
-                className="ml-1 hover:bg-white/20 rounded-full w-4 h-4 flex items-center justify-center text-xs cursor-pointer"
+                className="ml-0.5 hover:bg-white/20 rounded-full w-4 h-4 flex items-center justify-center text-[10px] cursor-pointer shrink-0"
               >
                 ✕
               </button>
@@ -400,12 +404,12 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
           )}
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
           {/* 1. Slideshow Play / Pause Button in Header */}
           <button
             onClick={() => setIsPlaying(!isPlaying)}
             title={isPlaying ? '슬라이드쇼 일시정지' : '슬라이드쇼 자동재생'}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer border ${
+            className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer border ${
               isPlaying
                 ? 'bg-[#000000] text-white border-[#000000] shadow-md animate-pulse'
                 : 'bg-white text-[#1a1c1c] border-[#c4c7c7] hover:border-[#000000]'
@@ -414,7 +418,7 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
             <span className="material-symbols-outlined text-[18px]">
               {isPlaying ? 'pause' : 'play_arrow'}
             </span>
-            <span className="hidden sm:inline">{isPlaying ? '일시정지' : '슬라이드쇼'}</span>
+            <span className="hidden md:inline">{isPlaying ? '일시정지' : '슬라이드쇼'}</span>
           </button>
 
           {/* Interval Switcher when playing */}
@@ -439,13 +443,13 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
             onClick={() => setShowPanel(!showPanel)}
             title={showPanel ? "사진 설명 닫기" : "사진 설명 보기"}
             aria-label="사진 설명"
-            className={`w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center transition-all cursor-pointer border ${
+            className={`w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center transition-all cursor-pointer border ${
               showPanel
                 ? 'bg-[#000000] text-white border-[#000000] shadow-sm'
                 : 'bg-white text-[#444748] border-[#c4c7c7] hover:border-[#000000] hover:text-[#000000]'
             }`}
           >
-            <span className="material-symbols-outlined text-[20px]">info</span>
+            <span className="material-symbols-outlined text-[18px] sm:text-[20px]">info</span>
           </button>
 
           {/* 3. Fullscreen Button */}
@@ -453,9 +457,9 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
             onClick={handleEnterFullscreen}
             title="전체 화면으로 감상하기 / F11"
             aria-label="Fullscreen view"
-            className="w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center border border-[#c4c7c7] text-[#444748] hover:border-[#000000] hover:text-[#000000] transition-colors cursor-pointer"
+            className="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center border border-[#c4c7c7] text-[#444748] hover:border-[#000000] hover:text-[#000000] transition-colors cursor-pointer"
           >
-            <span className="material-symbols-outlined text-[20px]">fullscreen</span>
+            <span className="material-symbols-outlined text-[18px] sm:text-[20px]">fullscreen</span>
           </button>
 
           {/* 4. Edit photo */}
@@ -463,9 +467,9 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
             onClick={handleEditClick}
             aria-label="Edit photo"
             title={isAdmin ? "Edit Photo" : "관리자 로그인 필요"}
-            className="w-10 h-10 rounded-full flex items-center justify-center border border-[#c4c7c7] text-[#444748] hover:border-[#000000] hover:text-[#000000] transition-colors cursor-pointer"
+            className="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center border border-[#c4c7c7] text-[#444748] hover:border-[#000000] hover:text-[#000000] transition-colors cursor-pointer"
           >
-            <span className="material-symbols-outlined text-[20px]">edit</span>
+            <span className="material-symbols-outlined text-[18px] sm:text-[20px]">edit</span>
           </button>
 
           {/* 5. Delete photo */}
@@ -473,9 +477,9 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
             onClick={handleDeleteClick}
             aria-label="Delete photo"
             title={isAdmin ? "Delete Photo" : "관리자 로그인 필요"}
-            className="w-10 h-10 rounded-full flex items-center justify-center border border-[#c4c7c7] text-[#ba1a1a] hover:bg-[#ffdad6] hover:border-[#ba1a1a] transition-colors cursor-pointer"
+            className="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center border border-[#c4c7c7] text-[#ba1a1a] hover:bg-[#ffdad6] hover:border-[#ba1a1a] transition-colors cursor-pointer"
           >
-            <span className="material-symbols-outlined text-[20px]">delete</span>
+            <span className="material-symbols-outlined text-[18px] sm:text-[20px]">delete</span>
           </button>
         </div>
       </header>

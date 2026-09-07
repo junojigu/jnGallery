@@ -935,6 +935,7 @@ export default function App() {
         <Header
           siteName={homeSettings.siteName}
           showGalleryPage={homeSettings.showGalleryPage !== false}
+          showExhibitionPage={homeSettings.showExhibitionPage !== false}
           activeView={activeView}
           setActiveView={(view) => {
             if (view === 'categories' && !isAdmin) {
@@ -964,10 +965,12 @@ export default function App() {
         {activeView === 'home' && (
           <HomeView
             onExplore={() => {
-              if (homeSettings.showGalleryPage === false) {
+              if (homeSettings.showGalleryPage !== false) {
+                setActiveView('gallery');
+              } else if (homeSettings.showExhibitionPage !== false) {
                 setActiveView('exhibition');
               } else {
-                setActiveView('gallery');
+                setActiveView('home');
               }
             }}
             homeSettings={homeSettings}
@@ -1032,19 +1035,31 @@ export default function App() {
               setActiveFilterLabel(null);
             }}
             backButtonText={
-              homeSettings.showGalleryPage === false || previousView === 'exhibition'
+              previousView === 'exhibition' && homeSettings.showExhibitionPage !== false
                 ? '작품 전시로 돌아가기'
                 : previousView === 'home'
                 ? '홈으로 돌아가기'
-                : '갤러리로 돌아가기'
+                : homeSettings.showGalleryPage !== false
+                ? 'Gallery로 돌아가기'
+                : homeSettings.showExhibitionPage !== false
+                ? '작품 전시로 돌아가기'
+                : '홈으로 돌아가기'
             }
             onBack={() => {
               let targetView = previousView;
               if (targetView === 'gallery' && homeSettings.showGalleryPage === false) {
-                targetView = 'exhibition';
+                targetView = homeSettings.showExhibitionPage !== false ? 'exhibition' : 'home';
+              }
+              if (targetView === 'exhibition' && homeSettings.showExhibitionPage === false) {
+                targetView = homeSettings.showGalleryPage !== false ? 'gallery' : 'home';
               }
               if (targetView === 'photo-detail') {
-                targetView = homeSettings.showGalleryPage === false ? 'exhibition' : 'gallery';
+                targetView =
+                  homeSettings.showGalleryPage !== false
+                    ? 'gallery'
+                    : homeSettings.showExhibitionPage !== false
+                    ? 'exhibition'
+                    : 'home';
               }
               setActiveView(targetView);
             }}

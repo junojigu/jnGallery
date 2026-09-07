@@ -395,6 +395,7 @@ export const INITIAL_PHOTOS: Photo[] = [
 export const INITIAL_HOME_SETTINGS: HomeSettings = {
   "siteName": "jnGalley",
   "showGalleryPage": true,
+  "showExhibitionPage": true,
   "heroImage": "https://res.cloudinary.com/ryhom5vw/image/upload/v1785813590/2026-08-04_115836_jgfb7b.jpg",
   "heroTitle": "빛, 마주침, 감정, 기억",
   "heroSubtitle": "스쳐 지나가는 일상에 빛이 스며드는 순간과 마주치고 이를 사진으로 기록합니다. 불필요한 장식 없이 사진 본연의 온기와 감정만을 남겨, 잊고 지낸 소중한 기억을 언제든 꺼내어 볼 수 있는 공간을 만듭니다.",
