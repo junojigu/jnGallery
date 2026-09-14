@@ -903,6 +903,21 @@ export default function App() {
     }, '사진 편집은 관리자 전용 기능입니다.');
   };
 
+  const handleToggleFeatured = (photoToToggle: Photo) => {
+    requireAdmin(() => {
+      const updatedPhoto: Photo = {
+        ...photoToToggle,
+        featured: !photoToToggle.featured,
+      };
+      handleSavePhoto(updatedPhoto);
+      showToast(
+        updatedPhoto.featured
+          ? '✨ 관리자 추천작으로 지정되었습니다.'
+          : '관리자 추천이 해제되었습니다.'
+      );
+    }, '추천작 관리를 위해 관리자 로그인이 필요합니다.');
+  };
+
   const handleSelectCategory = (id: string | null) => {
     setSelectedCategoryId(id);
     setActiveView('gallery');
@@ -1066,6 +1081,7 @@ export default function App() {
             onSelectPhoto={setSelectedPhoto}
             onEditPhoto={handleEditPhotoClick}
             onDeletePhoto={handleDeletePhoto}
+            onToggleFeatured={handleToggleFeatured}
             isAdmin={isAdmin}
             onRequireAdmin={() => handleOpenAdminLogin('사진 관리를 위해 관리자 로그인이 필요합니다.')}
           />

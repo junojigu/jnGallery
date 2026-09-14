@@ -11,6 +11,7 @@ interface PhotoDetailViewProps {
   onSelectPhoto: (photo: Photo) => void;
   onEditPhoto: (photo: Photo) => void;
   onDeletePhoto: (photo: Photo) => void;
+  onToggleFeatured?: (photo: Photo) => void;
   isAdmin?: boolean;
   onRequireAdmin?: () => void;
 }
@@ -25,6 +26,7 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
   onSelectPhoto,
   onEditPhoto,
   onDeletePhoto,
+  onToggleFeatured,
   isAdmin = false,
   onRequireAdmin,
 }) => {
@@ -365,6 +367,16 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
     }
   };
 
+  const handleToggleFeatured = () => {
+    if (!isAdmin && onRequireAdmin) {
+      onRequireAdmin();
+      return;
+    }
+    if (onToggleFeatured) {
+      onToggleFeatured(photo);
+    }
+  };
+
   return (
     <div className="bg-[#f9f9f9] text-[#1a1c1c] h-screen max-h-screen overflow-hidden flex flex-col font-sans">
       {/* Header Action Bar */}
@@ -400,6 +412,24 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
               >
                 ✕
               </button>
+            </div>
+          )}
+
+          {/* Featured (관리자 추천) Badge */}
+          {photo.featured && (
+            <div
+              onClick={isAdmin ? handleToggleFeatured : undefined}
+              className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/25 text-amber-900 text-xs font-medium select-none shadow-2xs shrink-0 transition-all ${
+                isAdmin ? 'cursor-pointer hover:bg-amber-500/20 hover:border-amber-500/40 active:scale-95' : ''
+              }`}
+              title={isAdmin ? "관리자 추천작 (클릭 시 추천 해제)" : "관리자 추천작"}
+            >
+              <span className="material-symbols-outlined text-[15px] sm:text-[16px] text-amber-500 leading-none select-none">
+                star
+              </span>
+              <span className="text-[11px] sm:text-xs font-semibold whitespace-nowrap">
+                관리자 추천
+              </span>
             </div>
           )}
         </div>
@@ -461,6 +491,24 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
           >
             <span className="material-symbols-outlined text-[18px] sm:text-[20px]">fullscreen</span>
           </button>
+
+          {/* 3.5. Featured toggle for Admin */}
+          {isAdmin && (
+            <button
+              onClick={handleToggleFeatured}
+              title={photo.featured ? "관리자 추천 해제" : "관리자 추천작으로 지정"}
+              aria-label="Toggle featured"
+              className={`w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center border transition-all cursor-pointer ${
+                photo.featured
+                  ? 'border-amber-400 bg-amber-50 text-amber-600 hover:bg-amber-100 shadow-xs'
+                  : 'border-[#c4c7c7] text-[#747878] hover:border-amber-400 hover:text-amber-500 hover:bg-amber-50/50'
+              }`}
+            >
+              <span className="material-symbols-outlined text-[18px] sm:text-[20px]">
+                {photo.featured ? 'star' : 'star_outline'}
+              </span>
+            </button>
+          )}
 
           {/* 4. Edit photo */}
           <button
@@ -532,7 +580,7 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
                   <div
                     key={item.id}
                     onClick={() => onSelectPhoto(item)}
-                    className={`flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden border-2 cursor-pointer transition-all ${
+                    className={`flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden border-2 cursor-pointer transition-all relative ${
                       isCurrent
                         ? 'border-[#000000] scale-105 shadow-md'
                         : 'border-transparent hover:border-[#c4c7c7] opacity-60 hover:opacity-100'
@@ -543,6 +591,14 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
                       alt={item.title}
                       className="w-full h-full object-cover"
                     />
+                    {item.featured && (
+                      <div
+                        className="absolute top-1 left-1 w-4 h-4 rounded-full bg-black/50 backdrop-blur-xs flex items-center justify-center pointer-events-none"
+                        title="관리자 추천작"
+                      >
+                        <span className="material-symbols-outlined text-[10px] text-amber-400 leading-none">star</span>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -555,6 +611,12 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
           <aside className="absolute right-4 md:right-8 top-2 bottom-16 w-[calc(100%-32px)] sm:w-[360px] md:w-[380px] z-30 flex flex-col gap-5 p-6 bg-white/20 backdrop-blur-md backdrop-saturate-150 border border-white/50 rounded-2xl shadow-[0_16px_40px_rgba(0,0,0,0.3)] text-[#1a1c1c] overflow-y-auto animate-fadeIn max-h-[calc(100%-70px)]">
             {/* Title & Description with Close Button */}
             <div className="flex flex-col gap-3">
+              {photo.featured && (
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/25 text-amber-900 text-xs font-semibold w-fit select-none">
+                  <span className="material-symbols-outlined text-sm text-amber-500">star</span>
+                  <span>관리자 추천작</span>
+                </div>
+              )}
               <div className="flex items-start justify-between gap-2">
                 <h1 className="font-serif text-2xl lg:text-3xl font-bold text-[#000000] leading-tight drop-shadow-xs">
                   {photo.title}
@@ -698,6 +760,16 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
                 <div className="flex items-center gap-2 bg-black/50 border border-white/15 text-white/90 text-xs px-3.5 py-1.5 rounded-full backdrop-blur-xl shadow-lg">
                   <span className="material-symbols-outlined text-sm text-amber-300">filter_alt</span>
                   <span className="font-medium text-white/90">{currentFilterText}</span>
+                </div>
+              )}
+
+              {photo.featured && (
+                <div
+                  className="flex items-center gap-1.5 bg-black/50 border border-amber-400/30 text-amber-300 text-xs px-3 py-1.5 rounded-full backdrop-blur-xl shadow-lg select-none"
+                  title="관리자 추천작"
+                >
+                  <span className="material-symbols-outlined text-[15px] text-amber-400 leading-none">star</span>
+                  <span className="font-medium text-white/90 text-[11px] whitespace-nowrap">관리자 추천</span>
                 </div>
               )}
 
