@@ -36,6 +36,7 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
   isAdmin = false,
 }) => {
   const [selectedTagFilters, setSelectedTagFilters] = useState<string[]>([]);
+  const [onlyFeatured, setOnlyFeatured] = useState<boolean>(false);
   const [tagFilterMode, setTagFilterMode] = useState<'OR' | 'AND'>('OR');
   const [photoSortOrder, setPhotoSortOrder] = useState<'date' | 'popular'>('date');
   const [visibleCount, setVisibleCount] = useState<number>(INITIAL_VISIBLE_COUNT);
@@ -63,36 +64,70 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
     setSelectedTagFilters([]);
   };
 
-  // Close dropdown on click outside
+  const clearAllFilters = () => {
+    setSelectedTagFilters([]);
+    setOnlyFeatured(false);
+  };
+
+  // Close dropdown on click outside and Escape key
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsTagDropdownOpen(false);
       }
     };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsTagDropdownOpen(false);
+      }
+    };
+
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    if (isTagDropdownOpen) {
+      document.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isTagDropdownOpen]);
 
   // Reset pagination when filter/category/search changes
   useEffect(() => {
     setVisibleCount(INITIAL_VISIBLE_COUNT);
-  }, [selectedCategoryId, selectedTagFilters, tagFilterMode, searchQuery]);
+  }, [selectedCategoryId, selectedTagFilters, tagFilterMode, searchQuery, onlyFeatured]);
+
+  // Active Category details
+  const activeCategory = categories.find((c) => c.id === selectedCategoryId);
+  const categoryTitle = activeCategory ? `${activeCategory.name} Collection` : 'All Collections';
+  const categoryDesc = activeCategory?.description || 'A curated gallery of fine photography studies. Explore landscapes, portraits, architecture, and everyday street moments.';
+
+  // Photos in current category scope
+  const baseCategoryPhotos = useMemo(() => {
+    if (!selectedCategoryId) return photos;
+    return photos.filter((p) => {
+      const matchId = p.categoryId === selectedCategoryId;
+      const matchCatName = activeCategory && p.category?.toLowerCase() === activeCategory.name.toLowerCase();
+      const matchRawCategory = p.category === selectedCategoryId;
+      return matchId || matchCatName || matchRawCategory;
+    });
+  }, [photos, selectedCategoryId, activeCategory]);
+
+  // Featured photos count in current category scope
+  const featuredPhotosCount = useMemo(() => {
+    return baseCategoryPhotos.filter((p) => p.featured).length;
+  }, [baseCategoryPhotos]);
 
   // Tag counts based on current category selection
   const tagCounts = useMemo(() => {
     const map: Record<string, number> = {};
-    const basePhotos = selectedCategoryId
-      ? photos.filter((p) => p.categoryId === selectedCategoryId || p.category === selectedCategoryId)
-      : photos;
-    
-    basePhotos.forEach((p) => {
+    baseCategoryPhotos.forEach((p) => {
       (p.tags || []).forEach((t) => {
         map[t] = (map[t] || 0) + 1;
       });
     });
     return map;
-  }, [photos, selectedCategoryId]);
+  }, [baseCategoryPhotos]);
 
   // All unique tag names sorted
   const allTagNames = useMemo(() => {
@@ -101,6 +136,21 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
     photos.forEach((p) => (p.tags || []).forEach((t) => set.add(t)));
     return Array.from(set);
   }, [tags, photos]);
+
+  // Popular tags for quick access
+  const popularTags = useMemo(() => {
+    const sorted = [...allTagNames].sort((a, b) => (tagCounts[b] || 0) - (tagCounts[a] || 0));
+    return sorted.filter((t) => (tagCounts[t] || 0) > 0).slice(0, 5);
+  }, [allTagNames, tagCounts]);
+
+  // Check if tag search input matches "추천" or "featured"
+  const isFeaturedSearchMatch = useMemo(() => {
+    if (!tagSearchInput.trim()) return true;
+    const q = tagSearchInput.toLowerCase().trim();
+    return '관리자 추천'.includes(q) || '추천'.includes(q) || 'featured'.includes(q) || 'star'.includes(q);
+  }, [tagSearchInput]);
+
+  const activeFilterCount = selectedTagFilters.length + (onlyFeatured ? 1 : 0);
 
   // Primary tags list for the main bar
   const primaryTagNames = useMemo(() => {
@@ -145,11 +195,6 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
     return remaining;
   }, [allTagNames, primaryTagNames, tagSearchInput, tagSortBy, tagCounts]);
 
-  // Active Category details
-  const activeCategory = categories.find((c) => c.id === selectedCategoryId);
-  const categoryTitle = activeCategory ? `${activeCategory.name} Collection` : 'All Collections';
-  const categoryDesc = activeCategory?.description || 'A curated gallery of fine photography studies. Explore landscapes, portraits, architecture, and everyday street moments.';
-
   // Filter photos (with deduplication by ID and URL)
   const filteredPhotos = useMemo(() => {
     const seenIds = new Set<string>();
@@ -176,6 +221,10 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
         if (!matchId && !matchCatName && !matchRawCategory) {
           return false;
         }
+      }
+      // Featured match (관리자 추천 필터)
+      if (onlyFeatured && !photo.featured) {
+        return false;
       }
       // Tag match
       if (selectedTagFilters.length > 0) {
@@ -212,7 +261,7 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
       }
       return true;
     });
-  }, [photos, selectedCategoryId, activeCategory, selectedTagFilters, tagFilterMode, searchQuery, categories]);
+  }, [photos, selectedCategoryId, activeCategory, onlyFeatured, selectedTagFilters, tagFilterMode, searchQuery, categories]);
 
   // Sort photos according to photoSortOrder ('date' | 'popular')
   const sortedPhotos = useMemo(() => {
@@ -281,17 +330,42 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
           {/* Tag Navigation Bar (Subtle Line Tab Style) */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#e5e5e5] pb-2.5">
             {/* Tag List Tabs */}
-            <div className="flex flex-wrap items-center gap-5 sm:gap-6">
+            <div className="flex flex-wrap items-center gap-4 sm:gap-5">
               {/* All Button */}
               <button
-                onClick={clearTagFilters}
+                onClick={clearAllFilters}
                 className={`font-sans text-sm font-semibold cursor-pointer pb-2.5 -mb-3 transition-colors border-b-2 ${
-                  selectedTagFilters.length === 0
+                  selectedTagFilters.length === 0 && !onlyFeatured
                     ? 'text-[#000000] border-[#000000] font-bold'
                     : 'text-[#8e8e93] hover:text-[#000000] border-transparent'
                 }`}
               >
                 All {activeCategory ? activeCategory.name : 'Photos'}
+              </button>
+
+              {/* Admin Featured Quick Filter Tab */}
+              <button
+                onClick={() => setOnlyFeatured(!onlyFeatured)}
+                className={`font-sans text-sm font-medium cursor-pointer pb-2.5 -mb-3 transition-all border-b-2 flex items-center gap-1.5 ${
+                  onlyFeatured
+                    ? 'text-amber-800 border-amber-500 font-bold'
+                    : 'text-[#8e8e93] hover:text-amber-600 border-transparent'
+                }`}
+                title="관리자 추천 작품만 모아보기"
+              >
+                <span className={`material-symbols-outlined text-[16px] leading-none ${onlyFeatured ? 'text-amber-500' : 'text-[#8e8e93]'}`}>
+                  {onlyFeatured ? 'star' : 'star_outline'}
+                </span>
+                <span>관리자 추천</span>
+                <span
+                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-semibold transition-colors ${
+                    onlyFeatured
+                      ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                      : 'bg-[#e5e5e5] text-[#666]'
+                  }`}
+                >
+                  {featuredPhotosCount}
+                </span>
               </button>
 
               {/* Top Main Tags */}
@@ -320,16 +394,17 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
               <button
                 onClick={() => setIsTagDropdownOpen(!isTagDropdownOpen)}
                 className={`font-sans text-xs font-medium px-3.5 py-2 rounded-lg transition-colors cursor-pointer flex items-center justify-center gap-1.5 ${
-                  isTagDropdownOpen || selectedTagFilters.length > 0
-                    ? 'bg-[#1a1c1c] text-white'
+                  isTagDropdownOpen || activeFilterCount > 0
+                    ? 'bg-[#1a1c1c] text-white shadow-xs'
                     : 'bg-[#f5f5f5] hover:bg-[#eaeaea] text-[#2c2c2e]'
                 }`}
+                title="태그 검색, 추천작 필터 및 조건 설정"
               >
-                <span className="material-symbols-outlined text-sm">search</span>
+                <span className="material-symbols-outlined text-sm">tune</span>
                 <span>태그 검색 / 더보기</span>
-                {selectedTagFilters.length > 0 && (
+                {activeFilterCount > 0 && (
                   <span className="bg-white text-black text-[10px] font-extrabold px-1.5 py-0.2 rounded-full">
-                    {selectedTagFilters.length}
+                    {activeFilterCount}
                   </span>
                 )}
                 <span className="material-symbols-outlined text-sm">
@@ -339,7 +414,7 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
 
               {/* Dropdown Popover */}
               {isTagDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-72 md:w-80 bg-white rounded-2xl shadow-xl border border-[#c4c7c7]/50 p-3 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+                <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-xl border border-[#c4c7c7]/50 p-3.5 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
                   {/* Search Header */}
                   <div className="relative mb-2.5">
                     <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-[#747878]">
@@ -349,7 +424,7 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
                       type="text"
                       value={tagSearchInput}
                       onChange={(e) => setTagSearchInput(e.target.value)}
-                      placeholder="태그 이름으로 검색..."
+                      placeholder="태그 검색 (예: Nature, 추천...)"
                       className="w-full bg-[#f3f3f4] text-xs text-[#000000] pl-8 pr-7 py-2 rounded-xl border border-transparent focus:border-[#000000] focus:bg-white focus:outline-none transition-all"
                       autoFocus
                     />
@@ -363,10 +438,74 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
                     )}
                   </div>
 
+                  {/* Special Filter: Featured (관리자 추천) Quick Toggle Card */}
+                  {isFeaturedSearchMatch && (
+                    <div
+                      onClick={() => setOnlyFeatured(!onlyFeatured)}
+                      className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between mb-2.5 select-none ${
+                        onlyFeatured
+                          ? 'bg-amber-500/10 border-amber-500/40 text-amber-950 shadow-2xs'
+                          : 'bg-[#f7f7f8] hover:bg-[#efefef] border-[#e2e2e2] text-[#1a1c1c]'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                          onlyFeatured ? 'bg-amber-500 text-white' : 'bg-amber-100 text-amber-700'
+                        }`}>
+                          <span className="material-symbols-outlined text-[16px]">star</span>
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs font-semibold text-[#1a1c1c] truncate">관리자 추천작만 모아보기</span>
+                            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold shrink-0 ${
+                              onlyFeatured ? 'bg-amber-200/80 text-amber-900' : 'bg-[#e2e2e2] text-[#555]'
+                            }`}>
+                              {featuredPhotosCount}장
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-[#747878] leading-tight truncate">
+                            관리자가 엄선한 대표 사진만 필터링합니다
+                          </p>
+                        </div>
+                      </div>
+                      <div className={`w-5 h-5 rounded-md flex items-center justify-center border shrink-0 ml-2 transition-all ${
+                        onlyFeatured ? 'bg-amber-500 border-amber-500 text-white' : 'border-[#c4c7c7] bg-white'
+                      }`}>
+                        {onlyFeatured && <span className="material-symbols-outlined text-sm font-bold">check</span>}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Popular Tags Quick Discovery (when not actively searching) */}
+                  {!tagSearchInput && popularTags.length > 0 && (
+                    <div className="mb-2.5 px-0.5">
+                      <span className="text-[10px] text-[#747878] font-semibold block mb-1">인기 태그:</span>
+                      <div className="flex flex-wrap gap-1">
+                        {popularTags.map((tag) => {
+                          const isSelected = selectedTagFilters.some((t) => normalizeTag(t) === normalizeTag(tag));
+                          return (
+                            <button
+                              key={tag}
+                              onClick={() => toggleTagFilter(tag)}
+                              className={`text-[10px] px-2 py-0.5 rounded-full transition-all cursor-pointer flex items-center gap-1 ${
+                                isSelected
+                                  ? 'bg-[#000000] text-white font-medium shadow-2xs'
+                                  : 'bg-[#f0f0f2] hover:bg-[#e2e2e4] text-[#333]'
+                              }`}
+                            >
+                              <span>#{normalizeTag(tag)}</span>
+                              <span className="opacity-60 text-[9px]">{tagCounts[tag] || 0}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Filter Mode & Reset Controls */}
-                  <div className="flex items-center justify-between border-b border-[#e2e2e2] pb-2 mb-2 px-1">
+                  <div className="flex items-center justify-between border-t border-b border-[#e2e2e2] py-2 mb-2 px-1">
                     <div className="flex items-center gap-1">
-                      <span className="text-[10px] text-[#747878] font-semibold mr-0.5">조건:</span>
+                      <span className="text-[10px] text-[#747878] font-semibold mr-0.5">태그 조건:</span>
                       <button
                         onClick={() => setTagFilterMode('OR')}
                         className={`text-[11px] px-2 py-0.5 rounded-md transition-all cursor-pointer ${
@@ -376,7 +515,7 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
                         }`}
                         title="선택한 태그 중 하나라도 포함된 사진 표시"
                       >
-                        OR
+                        OR (하나라도)
                       </button>
                       <button
                         onClick={() => setTagFilterMode('AND')}
@@ -387,23 +526,23 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
                         }`}
                         title="선택한 태그를 모두 포함한 사진만 표시"
                       >
-                        AND
+                        AND (모두 포함)
                       </button>
                     </div>
 
-                    {selectedTagFilters.length > 0 && (
+                    {activeFilterCount > 0 && (
                       <button
-                        onClick={clearTagFilters}
+                        onClick={clearAllFilters}
                         className="text-[10px] text-rose-600 hover:underline font-semibold cursor-pointer"
                       >
-                        선택 해제
+                        전체 초기화
                       </button>
                     )}
                   </div>
 
                   {/* Sort Controls */}
                   <div className="flex items-center justify-between border-b border-[#e2e2e2] pb-2 mb-2 px-1">
-                    <span className="text-[10px] text-[#747878] font-medium">정렬:</span>
+                    <span className="text-[10px] text-[#747878] font-medium">태그 정렬:</span>
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => setTagSortBy('count')}
@@ -428,9 +567,24 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
                     </div>
                   </div>
 
-                  {/* Selected Tags Pills inside Dropdown if any */}
-                  {selectedTagFilters.length > 0 && (
+                  {/* Selected Filters (Tags + Featured) Summary inside Popover */}
+                  {activeFilterCount > 0 && (
                     <div className="flex flex-wrap items-center gap-1 mb-2 px-1 pb-2 border-b border-[#e2e2e2]">
+                      {onlyFeatured && (
+                        <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-900 border border-amber-300 text-[10px] px-2 py-0.5 rounded-full font-semibold">
+                          <span className="material-symbols-outlined text-[11px] text-amber-500">star</span>
+                          추천작
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOnlyFeatured(false);
+                            }}
+                            className="hover:text-rose-600 ml-0.5 cursor-pointer font-bold"
+                          >
+                            ✕
+                          </button>
+                        </span>
+                      )}
                       {selectedTagFilters.map((st) => (
                         <span
                           key={st}
@@ -455,7 +609,7 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
                   <div className="max-h-52 overflow-y-auto space-y-1 pr-0.5 custom-scrollbar">
                     {dropdownFilteredTags.length === 0 ? (
                       <div className="py-6 text-center text-xs text-[#747878]">
-                        검색 결과가 없습니다.
+                        {tagSearchInput ? '일치하는 태그가 없습니다.' : '등록된 추가 태그가 없습니다.'}
                       </div>
                     ) : (
                       dropdownFilteredTags.map((tagName) => {
@@ -499,12 +653,25 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
             </div>
           </div>
 
-          {/* Selected Tag Active Filter Status Banner */}
-          {selectedTagFilters.length > 0 && (
+          {/* Selected Filters Active Status Banner (Tags + Featured) */}
+          {activeFilterCount > 0 && (
             <div className="mt-3 flex flex-wrap items-center justify-between gap-2 bg-white border border-[#e2e2e2] px-3.5 py-2.5 rounded-xl text-xs shadow-2xs">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-semibold text-[#000000]">선택한 태그 ({selectedTagFilters.length}개):</span>
+                <span className="font-semibold text-[#000000]">적용된 필터 ({activeFilterCount}개):</span>
                 <div className="flex flex-wrap items-center gap-1.5">
+                  {onlyFeatured && (
+                    <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-900 border border-amber-300 px-2.5 py-0.5 rounded-full text-[11px] font-semibold">
+                      <span className="material-symbols-outlined text-[13px] text-amber-500">star</span>
+                      관리자 추천
+                      <button
+                        onClick={() => setOnlyFeatured(false)}
+                        className="text-amber-700 hover:text-amber-950 font-bold cursor-pointer ml-0.5"
+                        title="추천 필터 해제"
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  )}
                   {selectedTagFilters.map((tag) => (
                     <span
                       key={tag}
@@ -520,35 +687,37 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
                     </span>
                   ))}
                 </div>
-                <div className="flex items-center gap-1 ml-1">
-                  <span className="text-[11px] text-[#747878]">조합:</span>
-                  <button
-                    onClick={() => setTagFilterMode('OR')}
-                    className={`text-[10px] font-bold px-2 py-0.5 rounded-md transition-all cursor-pointer ${
-                      tagFilterMode === 'OR'
-                        ? 'bg-indigo-600 text-white'
-                        : 'bg-[#f3f3f4] text-[#555] hover:bg-[#e2e2e2]'
-                    }`}
-                  >
-                    OR (하나라도)
-                  </button>
-                  <button
-                    onClick={() => setTagFilterMode('AND')}
-                    className={`text-[10px] font-bold px-2 py-0.5 rounded-md transition-all cursor-pointer ${
-                      tagFilterMode === 'AND'
-                        ? 'bg-indigo-600 text-white'
-                        : 'bg-[#f3f3f4] text-[#555] hover:bg-[#e2e2e2]'
-                    }`}
-                  >
-                    AND (모두)
-                  </button>
-                </div>
+                {selectedTagFilters.length > 1 && (
+                  <div className="flex items-center gap-1 ml-1">
+                    <span className="text-[11px] text-[#747878]">태그 조합:</span>
+                    <button
+                      onClick={() => setTagFilterMode('OR')}
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-md transition-all cursor-pointer ${
+                        tagFilterMode === 'OR'
+                          ? 'bg-indigo-600 text-white'
+                          : 'bg-[#f3f3f4] text-[#555] hover:bg-[#e2e2e2]'
+                      }`}
+                    >
+                      OR (하나라도)
+                    </button>
+                    <button
+                      onClick={() => setTagFilterMode('AND')}
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-md transition-all cursor-pointer ${
+                        tagFilterMode === 'AND'
+                          ? 'bg-indigo-600 text-white'
+                          : 'bg-[#f3f3f4] text-[#555] hover:bg-[#e2e2e2]'
+                      }`}
+                    >
+                      AND (모두)
+                    </button>
+                  </div>
+                )}
               </div>
               <button
-                onClick={clearTagFilters}
+                onClick={clearAllFilters}
                 className="text-[11px] text-rose-600 font-semibold hover:underline cursor-pointer shrink-0"
               >
-                필터 초기화
+                필터 전체 초기화
               </button>
             </div>
           )}
@@ -591,19 +760,33 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
         {filteredPhotos.length === 0 ? (
           <div className="bg-white rounded-xl p-12 text-center border border-[#c4c7c7]/30 max-w-md mx-auto my-12 ambient-shadow">
             <span className="material-symbols-outlined text-4xl text-[#747878] mb-3">photo_library</span>
-            <h3 className="font-serif text-xl font-semibold text-[#000000] mb-2">No photos found</h3>
+            <h3 className="font-serif text-xl font-semibold text-[#000000] mb-2">
+              {onlyFeatured ? '관리자 추천 작품이 없습니다' : '조건에 맞는 사진이 없습니다'}
+            </h3>
             <p className="text-xs text-[#444748] mb-6">
-              Try resetting your search or filters, or upload a new photo to this collection.
+              {onlyFeatured
+                ? '현재 카테고리 또는 선택한 태그 조건에 해당하는 관리자 추천작이 없습니다.'
+                : '검색어나 필터 조건을 변경하거나 초기화해 보세요.'}
             </p>
-            <button
-              onClick={() => {
-                onSelectCategory(null);
-                clearTagFilters();
-              }}
-              className="px-4 py-2 bg-[#000000] text-white text-xs font-medium rounded-lg hover:bg-opacity-90 cursor-pointer"
-            >
-              Reset Filters
-            </button>
+            <div className="flex items-center justify-center gap-2">
+              {onlyFeatured && (
+                <button
+                  onClick={() => setOnlyFeatured(false)}
+                  className="px-4 py-2 bg-amber-500 text-white text-xs font-medium rounded-lg hover:bg-amber-600 cursor-pointer"
+                >
+                  추천 필터 해제
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  onSelectCategory(null);
+                  clearAllFilters();
+                }}
+                className="px-4 py-2 bg-[#000000] text-white text-xs font-medium rounded-lg hover:bg-opacity-90 cursor-pointer"
+              >
+                모든 필터 초기화
+              </button>
+            </div>
           </div>
         ) : (
           <>
@@ -613,14 +796,21 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
                   key={photo.id}
                   onClick={() => {
                     let label = '';
+                    const parts: string[] = [];
+                    if (onlyFeatured) {
+                      parts.push('⭐ 관리자 추천');
+                    }
                     if (selectedTagFilters.length > 0) {
                       const tagsStr = selectedTagFilters.map((t) => `#${normalizeTag(t)}`).join(', ');
-                      label = `태그(${tagFilterMode}): ${tagsStr}`;
-                    } else if (selectedCategoryId) {
-                      label = `카테고리: ${activeCategory?.name || ''}`;
-                    } else if (searchQuery.trim()) {
-                      label = `검색: "${searchQuery}"`;
+                      parts.push(`태그(${tagFilterMode}): ${tagsStr}`);
                     }
+                    if (selectedCategoryId) {
+                      parts.push(`카테고리: ${activeCategory?.name || ''}`);
+                    }
+                    if (searchQuery.trim()) {
+                      parts.push(`검색: "${searchQuery}"`);
+                    }
+                    label = parts.join(' • ');
                     onViewPhoto(photo, sortedPhotos, label || undefined);
                   }}
                   className="masonry-item relative group rounded-xl overflow-hidden bg-white shadow-xs hover:shadow-md transition-all cursor-pointer border border-[#c4c7c7]/20"
