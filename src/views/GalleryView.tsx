@@ -343,20 +343,20 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
                 All {activeCategory ? activeCategory.name : 'Photos'}
               </button>
 
-              {/* Admin Featured Quick Filter Tab */}
+              {/* Admin Featured Quick Filter Tab - Simplified to (Star) (Count) */}
               <button
                 onClick={() => setOnlyFeatured(!onlyFeatured)}
-                className={`font-sans text-sm font-medium cursor-pointer pb-2.5 -mb-3 transition-all border-b-2 flex items-center gap-1.5 ${
+                className={`font-sans text-sm font-medium cursor-pointer pb-2.5 -mb-3 transition-all border-b-2 flex items-center gap-1 ${
                   onlyFeatured
                     ? 'text-amber-800 border-amber-500 font-bold'
                     : 'text-[#8e8e93] hover:text-amber-600 border-transparent'
                 }`}
                 title="관리자 추천 작품만 모아보기"
+                aria-label="관리자 추천 작품만 모아보기"
               >
-                <span className={`material-symbols-outlined text-[16px] leading-none ${onlyFeatured ? 'text-amber-500' : 'text-[#8e8e93]'}`}>
+                <span className={`material-symbols-outlined text-[17px] leading-none ${onlyFeatured ? 'text-amber-500' : 'text-[#8e8e93]'}`}>
                   {onlyFeatured ? 'star' : 'star_outline'}
                 </span>
-                <span>관리자 추천</span>
                 <span
                   className={`text-[10px] px-1.5 py-0.2 rounded-full font-semibold transition-colors ${
                     onlyFeatured

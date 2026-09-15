@@ -1055,7 +1055,7 @@ export default function App() {
                 : previousView === 'home'
                 ? '홈으로 돌아가기'
                 : homeSettings.showGalleryPage !== false
-                ? 'Gallery로 돌아가기'
+                ? '갤러리로 돌아가기'
                 : homeSettings.showExhibitionPage !== false
                 ? '작품 전시로 돌아가기'
                 : '홈으로 돌아가기'

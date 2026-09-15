@@ -1,6 +1,6 @@
 {
   "name": "Photo Moments",
-  "description": "A minimalist, fine photography curation and gallery management application.",
+  "description": "미니멀 파인 아트 사진 갤러리 및 컬렉션 큐레이션 서비스",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

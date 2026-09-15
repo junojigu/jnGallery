@@ -384,15 +384,12 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <button
             onClick={onBack}
-            title={backButtonText}
-            aria-label={backButtonText}
-            className="flex items-center justify-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-full bg-[#f0f0f2] hover:bg-[#e4e4e7] active:bg-[#d4d4d8] text-[#1a1c1c] transition-all group cursor-pointer shrink-0 border border-[#c4c7c7]/50 shadow-xs"
+            title={backButtonText || '갤러리로 돌아가기'}
+            aria-label={backButtonText || '갤러리로 돌아가기'}
+            className="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center bg-[#f0f0f2] hover:bg-[#e4e4e7] active:bg-[#d4d4d8] text-[#1a1c1c] transition-all group cursor-pointer shrink-0 border border-[#c4c7c7]/50 shadow-xs"
           >
-            <span className="material-symbols-outlined text-[20px] sm:text-[19px] group-hover:-translate-x-0.5 transition-transform shrink-0">
+            <span className="material-symbols-outlined text-[20px] sm:text-[22px] group-hover:-translate-x-0.5 transition-transform shrink-0">
               arrow_back
-            </span>
-            <span className="hidden sm:inline font-semibold text-xs sm:text-sm whitespace-nowrap">
-              {backButtonText}
             </span>
           </button>
 
@@ -415,20 +412,18 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
             </div>
           )}
 
-          {/* Featured (관리자 추천) Badge */}
+          {/* Featured (관리자 추천) Badge - Icon only with tooltip */}
           {photo.featured && (
             <div
               onClick={isAdmin ? handleToggleFeatured : undefined}
-              className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/25 text-amber-900 text-xs font-medium select-none shadow-2xs shrink-0 transition-all ${
+              className={`w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center bg-amber-500/10 border border-amber-500/30 text-amber-900 select-none shadow-2xs shrink-0 transition-all ${
                 isAdmin ? 'cursor-pointer hover:bg-amber-500/20 hover:border-amber-500/40 active:scale-95' : ''
               }`}
-              title={isAdmin ? "관리자 추천작 (클릭 시 추천 해제)" : "관리자 추천작"}
+              title={isAdmin ? "관리자 추천 (클릭 시 해제)" : "관리자 추천"}
+              aria-label="관리자 추천"
             >
-              <span className="material-symbols-outlined text-[15px] sm:text-[16px] text-amber-500 leading-none select-none">
+              <span className="material-symbols-outlined text-[18px] sm:text-[20px] text-amber-500 leading-none select-none">
                 star
-              </span>
-              <span className="text-[11px] sm:text-xs font-semibold whitespace-nowrap">
-                관리자 추천
               </span>
             </div>
           )}
@@ -612,9 +607,12 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
             {/* Title & Description with Close Button */}
             <div className="flex flex-col gap-3">
               {photo.featured && (
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/25 text-amber-900 text-xs font-semibold w-fit select-none">
+                <div
+                  className="w-7 h-7 rounded-full flex items-center justify-center bg-amber-500/10 border border-amber-500/25 text-amber-900 select-none shadow-2xs"
+                  title="관리자 추천"
+                  aria-label="관리자 추천"
+                >
                   <span className="material-symbols-outlined text-sm text-amber-500">star</span>
-                  <span>관리자 추천작</span>
                 </div>
               )}
               <div className="flex items-start justify-between gap-2">
@@ -765,11 +763,11 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
 
               {photo.featured && (
                 <div
-                  className="flex items-center gap-1.5 bg-black/50 border border-amber-400/30 text-amber-300 text-xs px-3 py-1.5 rounded-full backdrop-blur-xl shadow-lg select-none"
-                  title="관리자 추천작"
+                  className="w-8 h-8 rounded-full flex items-center justify-center bg-black/50 border border-amber-400/30 text-amber-300 backdrop-blur-xl shadow-lg select-none"
+                  title="관리자 추천"
+                  aria-label="관리자 추천"
                 >
-                  <span className="material-symbols-outlined text-[15px] text-amber-400 leading-none">star</span>
-                  <span className="font-medium text-white/90 text-[11px] whitespace-nowrap">관리자 추천</span>
+                  <span className="material-symbols-outlined text-[17px] text-amber-400 leading-none">star</span>
                 </div>
               )}
 
