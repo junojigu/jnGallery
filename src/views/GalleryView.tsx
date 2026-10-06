@@ -275,6 +275,9 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
       });
     } else if (photoSortOrder === 'popular') {
       list.sort((a, b) => {
+        const likesA = typeof a.likes === 'number' ? a.likes : 0;
+        const likesB = typeof b.likes === 'number' ? b.likes : 0;
+        if (likesA !== likesB) return likesB - likesA;
         const featA = a.featured ? 1 : 0;
         const featB = b.featured ? 1 : 0;
         if (featA !== featB) return featB - featA;

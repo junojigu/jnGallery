@@ -117,6 +117,34 @@ function normalizePhotoList(rawPhotos: any[], currentCategories: Category[]): Ph
       }
     }
 
+    // Normalize likes count
+    let likesCount = 0;
+    if (p.likes !== undefined && p.likes !== null && !isNaN(Number(p.likes))) {
+      likesCount = Math.max(0, Math.floor(Number(p.likes)));
+    } else {
+      try {
+        const savedLikesStr = localStorage.getItem('pm_photo_likes');
+        if (savedLikesStr) {
+          const savedLikesMap = JSON.parse(savedLikesStr);
+          if (savedLikesMap && typeof savedLikesMap[photoId] === 'number') {
+            likesCount = Math.max(0, savedLikesMap[photoId]);
+          }
+        }
+        if (likesCount === 0) {
+          const savedStr = localStorage.getItem('pm_photos');
+          if (savedStr) {
+            const savedList = JSON.parse(savedStr);
+            const match = savedList.find((sp: any) => sp.id === photoId || (sp.url && photoUrl && sp.url === photoUrl));
+            if (match && typeof match.likes === 'number') {
+              likesCount = Math.max(0, match.likes);
+            }
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
+
     deduplicated.push({
       ...p,
       id: photoId,
@@ -125,6 +153,7 @@ function normalizePhotoList(rawPhotos: any[], currentCategories: Category[]): Ph
       category: catName,
       tags: normalizedTags.length > 0 ? normalizedTags : ['#gallery'],
       featured: isFeatured,
+      likes: likesCount,
     });
   }
 
@@ -235,6 +264,17 @@ export default function App() {
   const [activePhotoList, setActivePhotoList] = useState<Photo[] | null>(null);
   const [activeFilterLabel, setActiveFilterLabel] = useState<string | null>(null);
 
+  // Visitor Liked Photos State (Mode A: 1 toggle per photo per visitor browser)
+  const [likedPhotoIds, setLikedPhotoIds] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('pm_liked_photos');
+      const parsed = saved ? JSON.parse(saved) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  });
+
   // Modals state
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [deleteModal, setDeleteModal] = useState<{
@@ -300,6 +340,7 @@ export default function App() {
             const normalized = normalizePhotoList(data.photos, loadedCategories);
             setPhotos((prevPhotos) => {
               const featuredMap = new Map<string, boolean>();
+              const likesMap = new Map<string, number>();
               const localPhotosMap = new Map<string, Photo>();
               prevPhotos.forEach((p) => {
                 localPhotosMap.set(p.id, p);
@@ -307,6 +348,10 @@ export default function App() {
                 if (p.featured) {
                   featuredMap.set(p.id, true);
                   if (p.url) featuredMap.set(p.url, true);
+                }
+                if (typeof p.likes === 'number' && p.likes > 0) {
+                  likesMap.set(p.id, p.likes);
+                  if (p.url) likesMap.set(p.url, p.likes);
                 }
               });
 
@@ -323,12 +368,21 @@ export default function App() {
                   return { ...p, ...localItem };
                 }
 
+                let mergedPhoto = { ...p };
+
                 // If Google Sheets explicit boolean isn't present, check if local state had it featured
                 if ((!sheetItem || sheetItem.featured === undefined || sheetItem.featured === null) &&
                     (featuredMap.get(p.id) || (p.url && featuredMap.get(p.url)))) {
-                  return { ...p, featured: true };
+                  mergedPhoto.featured = true;
                 }
-                return p;
+
+                // Preserve likes if sheet item doesn't have likes field yet
+                const localLikes = likesMap.get(p.id) || (p.url ? likesMap.get(p.url) : 0) || 0;
+                if (!sheetItem || sheetItem.likes === undefined || sheetItem.likes === null) {
+                  mergedPhoto.likes = Math.max(mergedPhoto.likes || 0, localLikes);
+                }
+
+                return mergedPhoto;
               });
               try { localStorage.setItem('pm_photos', JSON.stringify(updated)); } catch {}
               return updated;
@@ -918,6 +972,50 @@ export default function App() {
     }, '추천작 관리를 위해 관리자 로그인이 필요합니다.');
   };
 
+  // Visitor Like Toggle Handler (Mode A: 1-person 1-heart toggle)
+  const handleToggleLikePhoto = (targetPhoto: Photo) => {
+    const isAlreadyLiked = likedPhotoIds.includes(targetPhoto.id);
+    const currentLikes = typeof targetPhoto.likes === 'number' ? targetPhoto.likes : 0;
+    const nextLikes = isAlreadyLiked ? Math.max(0, currentLikes - 1) : currentLikes + 1;
+
+    const nextLikedIds = isAlreadyLiked
+      ? likedPhotoIds.filter((id) => id !== targetPhoto.id)
+      : [...likedPhotoIds, targetPhoto.id];
+
+    setLikedPhotoIds(nextLikedIds);
+    try {
+      localStorage.setItem('pm_liked_photos', JSON.stringify(nextLikedIds));
+    } catch {}
+
+    const updatedPhoto: Photo = {
+      ...targetPhoto,
+      likes: nextLikes,
+    };
+
+    const nextPhotos = photos.map((p) => (p.id === updatedPhoto.id ? updatedPhoto : p));
+    setPhotos(nextPhotos);
+
+    if (selectedPhoto?.id === updatedPhoto.id) {
+      setSelectedPhoto(updatedPhoto);
+    }
+    if (activePhotoList) {
+      setActivePhotoList((prev) =>
+        prev ? prev.map((p) => (p.id === updatedPhoto.id ? updatedPhoto : p)) : null
+      );
+    }
+
+    try {
+      localStorage.setItem('pm_photos', JSON.stringify(nextPhotos));
+      localStorage.setItem('pm_photos_updated_at', Date.now().toString());
+      const savedLikesStr = localStorage.getItem('pm_photo_likes');
+      const likesMap = savedLikesStr ? JSON.parse(savedLikesStr) : {};
+      likesMap[updatedPhoto.id] = nextLikes;
+      localStorage.setItem('pm_photo_likes', JSON.stringify(likesMap));
+    } catch {}
+
+    syncToGoogleSheet({ photos: nextPhotos });
+  };
+
   const handleSelectCategory = (id: string | null) => {
     setSelectedCategoryId(id);
     setActiveView('gallery');
@@ -1082,6 +1180,8 @@ export default function App() {
             onEditPhoto={handleEditPhotoClick}
             onDeletePhoto={handleDeletePhoto}
             onToggleFeatured={handleToggleFeatured}
+            onToggleLike={handleToggleLikePhoto}
+            likedPhotoIds={likedPhotoIds}
             isAdmin={isAdmin}
             onRequireAdmin={() => handleOpenAdminLogin('사진 관리를 위해 관리자 로그인이 필요합니다.')}
           />

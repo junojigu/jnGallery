@@ -12,6 +12,8 @@ interface PhotoDetailViewProps {
   onEditPhoto: (photo: Photo) => void;
   onDeletePhoto: (photo: Photo) => void;
   onToggleFeatured?: (photo: Photo) => void;
+  onToggleLike?: (photo: Photo) => void;
+  likedPhotoIds?: string[];
   isAdmin?: boolean;
   onRequireAdmin?: () => void;
 }
@@ -27,12 +29,27 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
   onEditPhoto,
   onDeletePhoto,
   onToggleFeatured,
+  onToggleLike,
+  likedPhotoIds = [],
   isAdmin = false,
   onRequireAdmin,
 }) => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showPanel, setShowPanel] = useState(false);
   const [internalTagFilter, setInternalTagFilter] = useState<string | null>(null);
+  const [isLikeAnimating, setIsLikeAnimating] = useState(false);
+
+  const isLiked = likedPhotoIds.includes(photo.id);
+  const likeCount = typeof photo.likes === 'number' ? photo.likes : 0;
+
+  const handleLikeClick = () => {
+    if (!onToggleLike) return;
+    setIsLikeAnimating(true);
+    onToggleLike(photo);
+    setTimeout(() => {
+      setIsLikeAnimating(false);
+    }, 350);
+  };
 
   // Fullscreen Theater Mode states
   const [isPlaying, setIsPlaying] = useState(false);
@@ -430,6 +447,30 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
         </div>
 
         <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+          {/* 0. Pastel Heart Like Button & Counter (Placed outside image in header bar) */}
+          <button
+            onClick={handleLikeClick}
+            title={isLiked ? '좋아요 취소' : '이 작품에 좋아요 남기기'}
+            aria-label={isLiked ? '좋아요 취소' : '좋아요'}
+            className={`flex items-center gap-1.5 px-2.5 sm:px-3.5 h-8 sm:h-9 md:h-10 rounded-full text-xs font-medium transition-all duration-200 cursor-pointer border select-none ${
+              isLiked
+                ? 'bg-[#ffe8ec] text-[#b84a5e] border-[#f5bac6] hover:bg-[#ffdfe5] shadow-2xs'
+                : 'bg-[#fdf6f7] text-[#8c6b70] border-[#f2dce0] hover:bg-[#fcecef] hover:border-[#eebec6] hover:text-[#a65363]'
+            }`}
+          >
+            <span
+              style={{ fontVariationSettings: isLiked ? "'FILL' 1, 'wght' 500" : "'FILL' 0, 'wght' 400" }}
+              className={`material-symbols-outlined text-[18px] sm:text-[19px] leading-none transition-transform duration-300 ${
+                isLiked ? 'text-[#f0657b]' : 'text-[#dfa0aa]'
+              } ${isLikeAnimating ? 'scale-130' : 'scale-100'}`}
+            >
+              favorite
+            </span>
+            <span className={`font-sans text-xs tabular-nums tracking-tight ${isLiked ? 'font-semibold text-[#a84255]' : 'font-medium text-[#7d5f64]'}`}>
+              {likeCount}
+            </span>
+          </button>
+
           {/* 1. Slideshow Play / Pause Button in Header */}
           <button
             onClick={() => setIsPlaying(!isPlaying)}
@@ -606,15 +647,36 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
           <aside className="absolute right-4 md:right-8 top-2 bottom-16 w-[calc(100%-32px)] sm:w-[360px] md:w-[380px] z-30 flex flex-col gap-5 p-6 bg-white/20 backdrop-blur-md backdrop-saturate-150 border border-white/50 rounded-2xl shadow-[0_16px_40px_rgba(0,0,0,0.3)] text-[#1a1c1c] overflow-y-auto animate-fadeIn max-h-[calc(100%-70px)]">
             {/* Title & Description with Close Button */}
             <div className="flex flex-col gap-3">
-              {photo.featured && (
-                <div
-                  className="w-7 h-7 rounded-full flex items-center justify-center bg-amber-500/10 border border-amber-500/25 text-amber-900 select-none shadow-2xs"
-                  title="관리자 추천"
-                  aria-label="관리자 추천"
+              <div className="flex items-center gap-2">
+                {photo.featured && (
+                  <div
+                    className="w-7 h-7 rounded-full flex items-center justify-center bg-amber-500/10 border border-amber-500/25 text-amber-900 select-none shadow-2xs"
+                    title="관리자 추천"
+                    aria-label="관리자 추천"
+                  >
+                    <span className="material-symbols-outlined text-sm text-amber-500">star</span>
+                  </div>
+                )}
+                <button
+                  onClick={handleLikeClick}
+                  title={isLiked ? '좋아요 취소' : '이 작품에 좋아요 남기기'}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs transition-all cursor-pointer border select-none ${
+                    isLiked
+                      ? 'bg-[#ffe8ec]/90 text-[#b84a5e] border-[#f5bac6]'
+                      : 'bg-white/60 text-[#7d5f64] border-white/70 hover:bg-[#fdf6f7]'
+                  }`}
                 >
-                  <span className="material-symbols-outlined text-sm text-amber-500">star</span>
-                </div>
-              )}
+                  <span
+                    style={{ fontVariationSettings: isLiked ? "'FILL' 1, 'wght' 500" : "'FILL' 0, 'wght' 400" }}
+                    className={`material-symbols-outlined text-[15px] leading-none ${
+                      isLiked ? 'text-[#f0657b]' : 'text-[#d9919d]'
+                    }`}
+                  >
+                    favorite
+                  </span>
+                  <span className="tabular-nums font-medium">{likeCount}</span>
+                </button>
+              </div>
               <div className="flex items-start justify-between gap-2">
                 <h1 className="font-serif text-2xl lg:text-3xl font-bold text-[#000000] leading-tight drop-shadow-xs">
                   {photo.title}
@@ -779,6 +841,28 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
 
             {/* Right Action Controls */}
             <div className="flex items-center gap-2 pointer-events-auto">
+              {/* Pastel Heart Like Button in Fullscreen Top Bar */}
+              <button
+                onClick={handleLikeClick}
+                title={isLiked ? '좋아요 취소' : '이 작품에 좋아요 남기기'}
+                aria-label={isLiked ? '좋아요 취소' : '좋아요'}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium backdrop-blur-xl transition-all cursor-pointer border select-none ${
+                  isLiked
+                    ? 'bg-[#ffd8df]/25 text-[#ffc2cd] border-[#f7a8b8]/45 shadow-lg'
+                    : 'bg-black/40 text-[#f5ced5]/85 border-white/15 hover:bg-black/60 hover:text-[#ffdce2]'
+                }`}
+              >
+                <span
+                  style={{ fontVariationSettings: isLiked ? "'FILL' 1, 'wght' 500" : "'FILL' 0, 'wght' 400" }}
+                  className={`material-symbols-outlined text-[17px] leading-none transition-transform duration-300 ${
+                    isLiked ? 'text-[#ff8fa3]' : 'text-[#e8a5b0]'
+                  } ${isLikeAnimating ? 'scale-130' : 'scale-100'}`}
+                >
+                  favorite
+                </span>
+                <span className="tabular-nums">{likeCount}</span>
+              </button>
+
               {/* Slideshow Play / Pause */}
               <button
                 onClick={() => setIsPlaying(!isPlaying)}

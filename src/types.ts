@@ -24,6 +24,7 @@ export interface Photo {
   camera?: string;
   exif?: string;
   featured?: boolean;
+  likes?: number;
 }
 
 export type ActiveView = 'home' | 'gallery' | 'categories' | 'photo-detail' | 'exhibition';
