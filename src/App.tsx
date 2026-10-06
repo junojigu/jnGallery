@@ -145,6 +145,40 @@ function normalizePhotoList(rawPhotos: any[], currentCategories: Category[]): Ph
       }
     }
 
+    // Normalize exhibitionPick boolean
+    let isExhibitionPick = false;
+    if (p.exhibitionPick !== undefined && p.exhibitionPick !== null) {
+      isExhibitionPick =
+        p.exhibitionPick === true ||
+        p.exhibitionPick === 'true' ||
+        p.exhibitionPick === 'TRUE' ||
+        p.exhibitionPick === 1 ||
+        p.exhibitionPick === '1';
+    } else {
+      try {
+        const savedPicksStr = localStorage.getItem('pm_exhibition_picks');
+        if (savedPicksStr) {
+          const savedPicksList = JSON.parse(savedPicksStr);
+          if (Array.isArray(savedPicksList) && savedPicksList.includes(photoId)) {
+            isExhibitionPick = true;
+          }
+        } else {
+          const savedStr = localStorage.getItem('pm_photos');
+          if (savedStr) {
+            const savedList = JSON.parse(savedStr);
+            const match = savedList.find(
+              (sp: any) => sp.id === photoId || (sp.url && photoUrl && sp.url === photoUrl)
+            );
+            if (match && match.exhibitionPick) {
+              isExhibitionPick = true;
+            }
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
+
     deduplicated.push({
       ...p,
       id: photoId,
@@ -153,6 +187,7 @@ function normalizePhotoList(rawPhotos: any[], currentCategories: Category[]): Ph
       category: catName,
       tags: normalizedTags.length > 0 ? normalizedTags : ['#gallery'],
       featured: isFeatured,
+      exhibitionPick: isExhibitionPick,
       likes: likesCount,
     });
   }
@@ -340,6 +375,7 @@ export default function App() {
             const normalized = normalizePhotoList(data.photos, loadedCategories);
             setPhotos((prevPhotos) => {
               const featuredMap = new Map<string, boolean>();
+              const exhibitionPickMap = new Map<string, boolean>();
               const likesMap = new Map<string, number>();
               const localPhotosMap = new Map<string, Photo>();
               prevPhotos.forEach((p) => {
@@ -348,6 +384,10 @@ export default function App() {
                 if (p.featured) {
                   featuredMap.set(p.id, true);
                   if (p.url) featuredMap.set(p.url, true);
+                }
+                if (p.exhibitionPick) {
+                  exhibitionPickMap.set(p.id, true);
+                  if (p.url) exhibitionPickMap.set(p.url, true);
                 }
                 if (typeof p.likes === 'number' && p.likes > 0) {
                   likesMap.set(p.id, p.likes);
@@ -374,6 +414,12 @@ export default function App() {
                 if ((!sheetItem || sheetItem.featured === undefined || sheetItem.featured === null) &&
                     (featuredMap.get(p.id) || (p.url && featuredMap.get(p.url)))) {
                   mergedPhoto.featured = true;
+                }
+
+                // Preserve exhibitionPick if sheet item doesn't have explicit exhibitionPick
+                if ((!sheetItem || sheetItem.exhibitionPick === undefined || sheetItem.exhibitionPick === null) &&
+                    (exhibitionPickMap.get(p.id) || (p.url && exhibitionPickMap.get(p.url)))) {
+                  mergedPhoto.exhibitionPick = true;
                 }
 
                 // Preserve likes if sheet item doesn't have likes field yet
@@ -972,6 +1018,70 @@ export default function App() {
     }, '추천작 관리를 위해 관리자 로그인이 필요합니다.');
   };
 
+  // Admin Exhibition Pick (Flag) Toggle Handler
+  const handleToggleExhibitionPick = (photoToToggle: Photo) => {
+    requireAdmin(() => {
+      const updatedPhoto: Photo = {
+        ...photoToToggle,
+        exhibitionPick: !photoToToggle.exhibitionPick,
+      };
+      const nextPhotos = photos.map((p) => (p.id === updatedPhoto.id ? updatedPhoto : p));
+      setPhotos(nextPhotos);
+
+      if (selectedPhoto?.id === updatedPhoto.id) {
+        setSelectedPhoto(updatedPhoto);
+      }
+      if (activePhotoList) {
+        setActivePhotoList((prev) =>
+          prev ? prev.map((p) => (p.id === updatedPhoto.id ? updatedPhoto : p)) : null
+        );
+      }
+
+      try {
+        localStorage.setItem('pm_photos', JSON.stringify(nextPhotos));
+        localStorage.setItem('pm_photos_updated_at', Date.now().toString());
+        const pickIds = nextPhotos.filter((p) => p.exhibitionPick).map((p) => p.id);
+        localStorage.setItem('pm_exhibition_picks', JSON.stringify(pickIds));
+      } catch {}
+
+      syncToGoogleSheet({ photos: nextPhotos });
+      showToast(
+        updatedPhoto.exhibitionPick
+          ? '🚩 전시 후보 작품으로 선택(깃발 표시)되었습니다.'
+          : '전시 후보(깃발 표시)가 해제되었습니다.'
+      );
+    }, '전시 후보 작품 선별은 관리자 전용 기능입니다.');
+  };
+
+  // Admin Clear All Exhibition Picks Handler
+  const handleClearAllExhibitionPicks = () => {
+    requireAdmin(() => {
+      const pickedCount = photos.filter((p) => p.exhibitionPick).length;
+      if (pickedCount === 0) return;
+
+      const nextPhotos = photos.map((p) => (p.exhibitionPick ? { ...p, exhibitionPick: false } : p));
+      setPhotos(nextPhotos);
+
+      if (selectedPhoto?.exhibitionPick) {
+        setSelectedPhoto({ ...selectedPhoto, exhibitionPick: false });
+      }
+      if (activePhotoList) {
+        setActivePhotoList((prev) =>
+          prev ? prev.map((p) => (p.exhibitionPick ? { ...p, exhibitionPick: false } : p)) : null
+        );
+      }
+
+      try {
+        localStorage.setItem('pm_photos', JSON.stringify(nextPhotos));
+        localStorage.setItem('pm_photos_updated_at', Date.now().toString());
+        localStorage.setItem('pm_exhibition_picks', JSON.stringify([]));
+      } catch {}
+
+      syncToGoogleSheet({ photos: nextPhotos });
+      showToast(`🚩 선택된 전시 후보(${pickedCount}장) 표시가 모두 해제되었습니다.`);
+    }, '전시 후보 일괄 해제는 관리자 전용 기능입니다.');
+  };
+
   // Visitor Like Toggle Handler (Mode A: 1-person 1-heart toggle)
   const handleToggleLikePhoto = (targetPhoto: Photo) => {
     const isAlreadyLiked = likedPhotoIds.includes(targetPhoto.id);
@@ -1101,6 +1211,8 @@ export default function App() {
             onViewPhoto={handleViewPhotoDetail}
             onEditPhoto={handleEditPhotoClick}
             onDeletePhoto={handleDeletePhoto}
+            onToggleExhibitionPick={handleToggleExhibitionPick}
+            onClearAllExhibitionPicks={handleClearAllExhibitionPicks}
             onViewAllTags={handleScrollToTags}
             isAdmin={isAdmin}
           />
@@ -1180,6 +1292,7 @@ export default function App() {
             onEditPhoto={handleEditPhotoClick}
             onDeletePhoto={handleDeletePhoto}
             onToggleFeatured={handleToggleFeatured}
+            onToggleExhibitionPick={handleToggleExhibitionPick}
             onToggleLike={handleToggleLikePhoto}
             likedPhotoIds={likedPhotoIds}
             isAdmin={isAdmin}

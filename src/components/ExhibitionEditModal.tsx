@@ -43,9 +43,10 @@ export const ExhibitionEditModal: React.FC<ExhibitionEditModalProps> = ({
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
-  // Tag filter & Drag & Drop Reordering states
+  // Tag filter, Exhibition Pick filter & Drag & Drop Reordering states
   const [searchTagFilter, setSearchTagFilter] = useState('');
   const [isTagSearchOpen, setIsTagSearchOpen] = useState(false);
+  const [onlyExhibitionPick, setOnlyExhibitionPick] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
@@ -98,11 +99,17 @@ export const ExhibitionEditModal: React.FC<ExhibitionEditModalProps> = ({
     return Array.from(tagSet).filter(Boolean);
   }, [photos]);
 
-  // Filter photos based on searchTagFilter
+  // Count of photos marked with exhibitionPick (flag)
+  const exhibitionPickPhotos = React.useMemo(() => {
+    return photos.filter((p) => p.exhibitionPick);
+  }, [photos]);
+
+  // Filter photos based on onlyExhibitionPick and searchTagFilter
   const filteredPhotos = React.useMemo(() => {
-    if (!searchTagFilter.trim()) return photos;
+    let baseList = onlyExhibitionPick ? photos.filter((p) => p.exhibitionPick) : photos;
+    if (!searchTagFilter.trim()) return baseList;
     const term = searchTagFilter.trim().toLowerCase();
-    return photos.filter((p) => {
+    return baseList.filter((p) => {
       const matchTitle = p.title.toLowerCase().includes(term);
       const matchCategory = p.category?.toLowerCase().includes(term);
       const matchLocation = p.location?.toLowerCase().includes(term);
@@ -114,7 +121,7 @@ export const ExhibitionEditModal: React.FC<ExhibitionEditModalProps> = ({
         });
       return matchTitle || matchCategory || matchLocation || matchTags;
     });
-  }, [photos, searchTagFilter]);
+  }, [photos, onlyExhibitionPick, searchTagFilter]);
 
   // Ordered list of selected photo objects for Drag & Drop
   const selectedPhotoObjects = React.useMemo(() => {
@@ -737,6 +744,44 @@ export const ExhibitionEditModal: React.FC<ExhibitionEditModalProps> = ({
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
+                  onClick={() => setOnlyExhibitionPick(!onlyExhibitionPick)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-all flex items-center gap-1 border ${
+                    onlyExhibitionPick
+                      ? 'bg-emerald-700 text-white border-emerald-700 shadow-sm ring-2 ring-emerald-200'
+                      : 'bg-emerald-50/70 text-emerald-900 border-emerald-300 hover:bg-emerald-100'
+                  }`}
+                  title="갤러리에서 깃발(전시 후보) 표시한 작품만 아래 목록에 필터링하여 보여줍니다"
+                >
+                  <span
+                    style={{ fontVariationSettings: "'FILL' 1" }}
+                    className={`material-symbols-outlined text-sm ${onlyExhibitionPick ? 'text-white' : 'text-emerald-600'}`}
+                  >
+                    flag
+                  </span>
+                  <span>전시 후보(깃발)만 보기 ({exhibitionPickPhotos.length}장)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const pickIds = photos.filter((p) => p.exhibitionPick).map((p) => p.id);
+                    setFormData((prev) => ({ ...prev, exhibitionPhotoIds: pickIds }));
+                  }}
+                  disabled={exhibitionPickPhotos.length === 0}
+                  className="px-3 py-1.5 bg-white border border-emerald-400 hover:border-emerald-600 hover:bg-emerald-50/50 text-emerald-900 disabled:opacity-40 disabled:pointer-events-none rounded-lg text-xs font-semibold cursor-pointer transition-all flex items-center gap-1"
+                  title="갤러리에서 깃발 표시한 전시 후보 사진들을 이 전시 작품으로 일괄 선택합니다"
+                >
+                  <span
+                    style={{ fontVariationSettings: "'FILL' 1" }}
+                    className="material-symbols-outlined text-sm text-emerald-600"
+                  >
+                    flag
+                  </span>
+                  <span>전시 후보 사진만 선택 ({exhibitionPickPhotos.length}장)</span>
+                </button>
+
+                <button
+                  type="button"
                   onClick={() => setIsTagSearchOpen(!isTagSearchOpen)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-all flex items-center gap-1 border ${
                     isTagSearchOpen || searchTagFilter
@@ -839,51 +884,94 @@ export const ExhibitionEditModal: React.FC<ExhibitionEditModalProps> = ({
             <div className="space-y-1.5">
               <div className="flex items-center justify-between text-xs text-[#747878]">
                 <span>
-                  사진을 클릭하여 이 전시에 포함/제외하세요 ({filteredPhotos.length}장 검색됨)
+                  사진을 클릭하여 이 전시에 포함/제외하세요 ({filteredPhotos.length}장 표시됨)
                 </span>
-                {searchTagFilter && (
-                  <span className="text-amber-700 font-semibold">필터: '{searchTagFilter}'</span>
-                )}
+                <div className="flex items-center gap-2">
+                  {onlyExhibitionPick && (
+                    <span className="text-emerald-700 font-semibold flex items-center gap-1">
+                      <span
+                        style={{ fontVariationSettings: "'FILL' 1" }}
+                        className="material-symbols-outlined text-xs"
+                      >
+                        flag
+                      </span>
+                      전시 후보(깃발) 필터 적용 중
+                      <button
+                        type="button"
+                        onClick={() => setOnlyExhibitionPick(false)}
+                        className="text-emerald-900 hover:underline ml-0.5 cursor-pointer"
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  )}
+                  {searchTagFilter && (
+                    <span className="text-amber-700 font-semibold">필터: '{searchTagFilter}'</span>
+                  )}
+                </div>
               </div>
 
-              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 max-h-60 overflow-y-auto p-2 bg-[#f3f3f4] rounded-xl border border-[#c4c7c7] custom-scrollbar">
-                {filteredPhotos.map((photo) => {
-                  const currentSelected = formData.exhibitionPhotoIds || [];
-                  const isSelected = currentSelected.includes(photo.id);
-                  const selectedOrder = isSelected ? currentSelected.indexOf(photo.id) + 1 : null;
+              {filteredPhotos.length === 0 ? (
+                <div className="py-8 text-center text-xs text-[#747878] bg-[#f3f3f4] rounded-xl border border-[#c4c7c7]">
+                  {onlyExhibitionPick
+                    ? '갤러리에서 깃발(전시 후보) 표시한 사진이 없습니다. 갤러리 페이지에서 전시할 사진에 깃발 표시를 해보세요.'
+                    : '조건에 일치하는 사진이 없습니다.'}
+                </div>
+              ) : (
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 max-h-60 overflow-y-auto p-2 bg-[#f3f3f4] rounded-xl border border-[#c4c7c7] custom-scrollbar">
+                  {filteredPhotos.map((photo) => {
+                    const currentSelected = formData.exhibitionPhotoIds || [];
+                    const isSelected = currentSelected.includes(photo.id);
+                    const selectedOrder = isSelected ? currentSelected.indexOf(photo.id) + 1 : null;
 
-                  const togglePhoto = () => {
-                    const nextSelected = isSelected
-                      ? currentSelected.filter((id) => id !== photo.id)
-                      : [...currentSelected, photo.id];
-                    setFormData((prev) => ({ ...prev, exhibitionPhotoIds: nextSelected }));
-                  };
+                    const togglePhoto = () => {
+                      const nextSelected = isSelected
+                        ? currentSelected.filter((id) => id !== photo.id)
+                        : [...currentSelected, photo.id];
+                      setFormData((prev) => ({ ...prev, exhibitionPhotoIds: nextSelected }));
+                    };
 
-                  return (
-                    <div
-                      key={photo.id}
-                      onClick={togglePhoto}
-                      className={`relative aspect-square rounded-lg overflow-hidden cursor-pointer border-2 transition-all ${
-                        isSelected
-                          ? 'border-[#000000] ring-2 ring-amber-400 scale-[0.98]'
-                          : 'border-transparent opacity-60 hover:opacity-100 hover:scale-102'
-                      }`}
-                    >
-                      <img src={photo.url} alt={photo.title} className="w-full h-full object-cover" />
+                    return (
+                      <div
+                        key={photo.id}
+                        onClick={togglePhoto}
+                        className={`relative aspect-square rounded-lg overflow-hidden cursor-pointer border-2 transition-all ${
+                          isSelected
+                            ? 'border-[#000000] ring-2 ring-amber-400 scale-[0.98]'
+                            : 'border-transparent opacity-60 hover:opacity-100 hover:scale-102'
+                        }`}
+                      >
+                        <img src={photo.url} alt={photo.title} className="w-full h-full object-cover" />
 
-                      {isSelected && (
-                        <div className="absolute top-1 right-1 bg-[#000000] text-white rounded-full text-[10px] font-bold w-5 h-5 flex items-center justify-center shadow-md">
-                          {selectedOrder}
+                        {/* Exhibition Pick Flag Indicator (Top Left) */}
+                        {photo.exhibitionPick && (
+                          <div
+                            className="absolute top-1 left-1 bg-emerald-600/90 text-white rounded-full w-5 h-5 flex items-center justify-center shadow-xs"
+                            title="전시 후보(깃발) 작품"
+                          >
+                            <span
+                              style={{ fontVariationSettings: "'FILL' 1" }}
+                              className="material-symbols-outlined text-[12px] leading-none"
+                            >
+                              flag
+                            </span>
+                          </div>
+                        )}
+
+                        {isSelected && (
+                          <div className="absolute top-1 right-1 bg-[#000000] text-white rounded-full text-[10px] font-bold w-5 h-5 flex items-center justify-center shadow-md">
+                            {selectedOrder}
+                          </div>
+                        )}
+
+                        <div className="absolute bottom-0 inset-x-0 bg-black/60 text-white text-[9px] px-1 py-0.5 truncate text-center">
+                          {photo.title}
                         </div>
-                      )}
-
-                      <div className="absolute bottom-0 inset-x-0 bg-black/60 text-white text-[9px] px-1 py-0.5 truncate text-center">
-                        {photo.title}
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
 

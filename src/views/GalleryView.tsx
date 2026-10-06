@@ -12,6 +12,8 @@ interface GalleryViewProps {
   onViewPhoto: (photo: Photo, contextPhotos?: Photo[], filterLabel?: string) => void;
   onEditPhoto: (photo: Photo) => void;
   onDeletePhoto: (photo: Photo) => void;
+  onToggleExhibitionPick?: (photo: Photo) => void;
+  onClearAllExhibitionPicks?: () => void;
   onViewAllTags: () => void;
   isAdmin?: boolean;
 }
@@ -32,14 +34,24 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
   onViewPhoto,
   onEditPhoto,
   onDeletePhoto,
+  onToggleExhibitionPick,
+  onClearAllExhibitionPicks,
   onViewAllTags,
   isAdmin = false,
 }) => {
   const [selectedTagFilters, setSelectedTagFilters] = useState<string[]>([]);
   const [onlyFeatured, setOnlyFeatured] = useState<boolean>(false);
+  const [onlyExhibitionPick, setOnlyExhibitionPick] = useState<boolean>(false);
   const [tagFilterMode, setTagFilterMode] = useState<'OR' | 'AND'>('OR');
   const [photoSortOrder, setPhotoSortOrder] = useState<'date' | 'popular'>('date');
   const [visibleCount, setVisibleCount] = useState<number>(INITIAL_VISIBLE_COUNT);
+
+  // Ensure admin-only filter is turned off if admin logs out
+  useEffect(() => {
+    if (!isAdmin && onlyExhibitionPick) {
+      setOnlyExhibitionPick(false);
+    }
+  }, [isAdmin, onlyExhibitionPick]);
   
   // Tag dropdown states
   const [isTagDropdownOpen, setIsTagDropdownOpen] = useState(false);
@@ -67,6 +79,7 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
   const clearAllFilters = () => {
     setSelectedTagFilters([]);
     setOnlyFeatured(false);
+    setOnlyExhibitionPick(false);
   };
 
   // Close dropdown on click outside and Escape key
@@ -95,7 +108,7 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
   // Reset pagination when filter/category/search changes
   useEffect(() => {
     setVisibleCount(INITIAL_VISIBLE_COUNT);
-  }, [selectedCategoryId, selectedTagFilters, tagFilterMode, searchQuery, onlyFeatured]);
+  }, [selectedCategoryId, selectedTagFilters, tagFilterMode, searchQuery, onlyFeatured, onlyExhibitionPick]);
 
   // Active Category details
   const activeCategory = categories.find((c) => c.id === selectedCategoryId);
@@ -117,6 +130,15 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
   const featuredPhotosCount = useMemo(() => {
     return baseCategoryPhotos.filter((p) => p.featured).length;
   }, [baseCategoryPhotos]);
+
+  // Exhibition Pick photos count in current category scope & total across gallery
+  const exhibitionPickPhotosCount = useMemo(() => {
+    return baseCategoryPhotos.filter((p) => p.exhibitionPick).length;
+  }, [baseCategoryPhotos]);
+
+  const totalExhibitionPickCount = useMemo(() => {
+    return photos.filter((p) => p.exhibitionPick).length;
+  }, [photos]);
 
   // Tag counts based on current category selection
   const tagCounts = useMemo(() => {
@@ -150,7 +172,14 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
     return '관리자 추천'.includes(q) || '추천'.includes(q) || 'featured'.includes(q) || 'star'.includes(q);
   }, [tagSearchInput]);
 
-  const activeFilterCount = selectedTagFilters.length + (onlyFeatured ? 1 : 0);
+  // Check if tag search input matches "전시" or "깃발" or "후보"
+  const isExhibitionPickSearchMatch = useMemo(() => {
+    if (!tagSearchInput.trim()) return true;
+    const q = tagSearchInput.toLowerCase().trim();
+    return '전시 후보'.includes(q) || '전시'.includes(q) || '깃발'.includes(q) || 'flag'.includes(q) || 'pick'.includes(q);
+  }, [tagSearchInput]);
+
+  const activeFilterCount = selectedTagFilters.length + (onlyFeatured ? 1 : 0) + (isAdmin && onlyExhibitionPick ? 1 : 0);
 
   // Primary tags list for the main bar
   const primaryTagNames = useMemo(() => {
@@ -226,6 +255,10 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
       if (onlyFeatured && !photo.featured) {
         return false;
       }
+      // Exhibition Pick match (관리자 전용 전시 후보 깃발 필터)
+      if (isAdmin && onlyExhibitionPick && !photo.exhibitionPick) {
+        return false;
+      }
       // Tag match
       if (selectedTagFilters.length > 0) {
         const photoTagsNorm = (photo.tags || []).map((t) => normalizeTag(t));
@@ -261,7 +294,7 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
       }
       return true;
     });
-  }, [photos, selectedCategoryId, activeCategory, onlyFeatured, selectedTagFilters, tagFilterMode, searchQuery, categories]);
+  }, [photos, selectedCategoryId, activeCategory, onlyFeatured, isAdmin, onlyExhibitionPick, selectedTagFilters, tagFilterMode, searchQuery, categories]);
 
   // Sort photos according to photoSortOrder ('date' | 'popular')
   const sortedPhotos = useMemo(() => {
@@ -338,7 +371,7 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
               <button
                 onClick={clearAllFilters}
                 className={`font-sans text-sm font-semibold cursor-pointer pb-2.5 -mb-3 transition-colors border-b-2 ${
-                  selectedTagFilters.length === 0 && !onlyFeatured
+                  selectedTagFilters.length === 0 && !onlyFeatured && !onlyExhibitionPick
                     ? 'text-[#000000] border-[#000000] font-bold'
                     : 'text-[#8e8e93] hover:text-[#000000] border-transparent'
                 }`}
@@ -370,6 +403,56 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
                   {featuredPhotosCount}
                 </span>
               </button>
+
+              {/* Admin-Only Exhibition Pick (Flag) Quick Filter Tab & Bulk Reset */}
+              {isAdmin && (
+                <div className="flex items-center gap-1.5 pb-2.5 -mb-3 border-b-2 transition-all border-transparent">
+                  <button
+                    onClick={() => setOnlyExhibitionPick(!onlyExhibitionPick)}
+                    className={`font-sans text-sm font-medium cursor-pointer transition-all flex items-center gap-1 ${
+                      onlyExhibitionPick
+                        ? 'text-emerald-800 font-bold'
+                        : 'text-[#8e8e93] hover:text-emerald-700'
+                    }`}
+                    title="전시 후보(깃발 표시) 작품만 모아보기 (관리자 전용)"
+                    aria-label="전시 후보 작품만 모아보기"
+                  >
+                    <span
+                      style={{ fontVariationSettings: onlyExhibitionPick ? "'FILL' 1" : "'FILL' 0" }}
+                      className={`material-symbols-outlined text-[17px] leading-none ${
+                        onlyExhibitionPick ? 'text-emerald-600' : 'text-[#8e8e93]'
+                      }`}
+                    >
+                      flag
+                    </span>
+                    <span
+                      className={`text-[10px] px-1.5 py-0.2 rounded-full font-semibold transition-colors ${
+                        onlyExhibitionPick
+                          ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                          : 'bg-[#e5e5e5] text-[#666]'
+                      }`}
+                    >
+                      {exhibitionPickPhotosCount}
+                    </span>
+                  </button>
+
+                  {totalExhibitionPickCount > 0 && onClearAllExhibitionPicks && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onClearAllExhibitionPicks();
+                        setOnlyExhibitionPick(false);
+                      }}
+                      title={`선택된 전시 후보(${totalExhibitionPickCount}장) 깃발 표시를 한꺼번에 모두 해제합니다`}
+                      className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 hover:bg-rose-50 text-emerald-800 hover:text-rose-700 border border-emerald-200 hover:border-rose-300 font-semibold transition-colors cursor-pointer flex items-center gap-0.5"
+                    >
+                      <span>깃발 해제</span>
+                      <span className="text-[9px] opacity-75">✕</span>
+                    </button>
+                  )}
+                </div>
+              )}
 
               {/* Top Main Tags */}
               {mainChips.map((tagName) => {
@@ -445,7 +528,7 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
                   {isFeaturedSearchMatch && (
                     <div
                       onClick={() => setOnlyFeatured(!onlyFeatured)}
-                      className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between mb-2.5 select-none ${
+                      className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between mb-2 select-none ${
                         onlyFeatured
                           ? 'bg-amber-500/10 border-amber-500/40 text-amber-950 shadow-2xs'
                           : 'bg-[#f7f7f8] hover:bg-[#efefef] border-[#e2e2e2] text-[#1a1c1c]'
@@ -475,6 +558,65 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
                         onlyFeatured ? 'bg-amber-500 border-amber-500 text-white' : 'border-[#c4c7c7] bg-white'
                       }`}>
                         {onlyFeatured && <span className="material-symbols-outlined text-sm font-bold">check</span>}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Admin-Only Special Filter: Exhibition Pick (전시 후보 깃발) Quick Toggle Card */}
+                  {isAdmin && isExhibitionPickSearchMatch && (
+                    <div
+                      onClick={() => setOnlyExhibitionPick(!onlyExhibitionPick)}
+                      className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between mb-2.5 select-none ${
+                        onlyExhibitionPick
+                          ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-950 shadow-2xs'
+                          : 'bg-[#f7f7f8] hover:bg-[#efefef] border-[#e2e2e2] text-[#1a1c1c]'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                          onlyExhibitionPick ? 'bg-emerald-600 text-white' : 'bg-emerald-100 text-emerald-700'
+                        }`}>
+                          <span
+                            style={{ fontVariationSettings: "'FILL' 1" }}
+                            className="material-symbols-outlined text-[16px]"
+                          >
+                            flag
+                          </span>
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs font-semibold text-[#1a1c1c] truncate">전시 후보(깃발) 작품만 보기</span>
+                            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold shrink-0 ${
+                              onlyExhibitionPick ? 'bg-emerald-200/80 text-emerald-900' : 'bg-[#e2e2e2] text-[#555]'
+                            }`}>
+                              {exhibitionPickPhotosCount}장
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-[#747878] leading-tight truncate">
+                            전시 기획용으로 깃발 표시한 후보 사진만 필터링
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                        {totalExhibitionPickCount > 0 && onClearAllExhibitionPicks && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onClearAllExhibitionPicks();
+                              setOnlyExhibitionPick(false);
+                            }}
+                            title="선택된 전시 후보 깃발을 모두 해제"
+                            className="text-[10px] px-2 py-1 rounded-md bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 font-semibold transition-colors cursor-pointer"
+                          >
+                            전체 해제
+                          </button>
+                        )}
+                        <div className={`w-5 h-5 rounded-md flex items-center justify-center border transition-all ${
+                          onlyExhibitionPick ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-[#c4c7c7] bg-white'
+                        }`}>
+                          {onlyExhibitionPick && <span className="material-symbols-outlined text-sm font-bold">check</span>}
+                        </div>
                       </div>
                     </div>
                   )}
@@ -588,6 +730,26 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
                           </button>
                         </span>
                       )}
+                      {isAdmin && onlyExhibitionPick && (
+                        <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-900 border border-emerald-300 text-[10px] px-2 py-0.5 rounded-full font-semibold">
+                          <span
+                            style={{ fontVariationSettings: "'FILL' 1" }}
+                            className="material-symbols-outlined text-[11px] text-emerald-600"
+                          >
+                            flag
+                          </span>
+                          전시 후보
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOnlyExhibitionPick(false);
+                            }}
+                            className="hover:text-rose-600 ml-0.5 cursor-pointer font-bold"
+                          >
+                            ✕
+                          </button>
+                        </span>
+                      )}
                       {selectedTagFilters.map((st) => (
                         <span
                           key={st}
@@ -670,6 +832,24 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
                         onClick={() => setOnlyFeatured(false)}
                         className="text-amber-700 hover:text-amber-950 font-bold cursor-pointer ml-0.5"
                         title="추천 필터 해제"
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  )}
+                  {isAdmin && onlyExhibitionPick && (
+                    <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-900 border border-emerald-300 px-2.5 py-0.5 rounded-full text-[11px] font-semibold">
+                      <span
+                        style={{ fontVariationSettings: "'FILL' 1" }}
+                        className="material-symbols-outlined text-[13px] text-emerald-600"
+                      >
+                        flag
+                      </span>
+                      전시 후보 (깃발)
+                      <button
+                        onClick={() => setOnlyExhibitionPick(false)}
+                        className="text-emerald-700 hover:text-emerald-950 font-bold cursor-pointer ml-0.5"
+                        title="전시 후보 필터 해제"
                       >
                         ✕
                       </button>
@@ -803,6 +983,9 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
                     if (onlyFeatured) {
                       parts.push('⭐ 관리자 추천');
                     }
+                    if (isAdmin && onlyExhibitionPick) {
+                      parts.push('🚩 전시 후보');
+                    }
                     if (selectedTagFilters.length > 0) {
                       const tagsStr = selectedTagFilters.map((t) => `#${normalizeTag(t)}`).join(', ');
                       parts.push(`태그(${tagFilterMode}): ${tagsStr}`);
@@ -824,15 +1007,36 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
                     className="w-full h-auto object-cover block transition-transform duration-500 group-hover:scale-102"
                   />
 
-                  {/* Featured Badge (Subtle Glassmorphism Star) */}
-                  {photo.featured && (
-                    <div
-                      className="absolute top-3 left-3 w-7 h-7 rounded-full bg-white/40 backdrop-blur-md border border-white/60 shadow-xs flex items-center justify-center z-10 transition-transform duration-200 group-hover:scale-105"
-                      title="관리자 추천작"
-                    >
-                      <span className="material-symbols-outlined text-[15px] leading-none text-[#2d2f31]/80 select-none">
-                        star
-                      </span>
+                  {/* Top-Left Badges (Featured Star & Admin-Only Exhibition Pick Flag) */}
+                  {(photo.featured || (isAdmin && photo.exhibitionPick)) && (
+                    <div className="absolute top-3 left-3 flex items-center gap-1.5 z-10">
+                      {photo.featured && (
+                        <div
+                          className="w-7 h-7 rounded-full bg-white/40 backdrop-blur-md border border-white/60 shadow-xs flex items-center justify-center transition-transform duration-200 group-hover:scale-105"
+                          title="관리자 추천작"
+                        >
+                          <span className="material-symbols-outlined text-[15px] leading-none text-[#2d2f31]/80 select-none">
+                            star
+                          </span>
+                        </div>
+                      )}
+                      {isAdmin && photo.exhibitionPick && (
+                        <div
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onToggleExhibitionPick?.(photo);
+                          }}
+                          className="w-7 h-7 rounded-full bg-emerald-600/90 hover:bg-emerald-700 text-white backdrop-blur-md border border-emerald-300/60 shadow-sm flex items-center justify-center transition-transform duration-200 hover:scale-110 cursor-pointer"
+                          title="전시 후보 작품 (클릭 시 깃발 해제)"
+                        >
+                          <span
+                            style={{ fontVariationSettings: "'FILL' 1" }}
+                            className="material-symbols-outlined text-[15px] leading-none select-none"
+                          >
+                            flag
+                          </span>
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -841,6 +1045,24 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
                     className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10"
                     onClick={(e) => e.stopPropagation()}
                   >
+                    {isAdmin && onToggleExhibitionPick && (
+                      <button
+                        onClick={() => onToggleExhibitionPick(photo)}
+                        title={photo.exhibitionPick ? '전시 후보(깃발) 해제' : '전시 후보(깃발)로 선택'}
+                        className={`p-2 rounded-full backdrop-blur-xs shadow-xs transition-all flex items-center justify-center cursor-pointer ${
+                          photo.exhibitionPick
+                            ? 'bg-emerald-600 text-white hover:bg-emerald-700 ring-2 ring-emerald-300/70'
+                            : 'bg-white/90 text-[#1a1c1c] hover:bg-emerald-50 hover:text-emerald-700'
+                        }`}
+                      >
+                        <span
+                          style={{ fontVariationSettings: photo.exhibitionPick ? "'FILL' 1" : "'FILL' 0" }}
+                          className="material-symbols-outlined text-[18px]"
+                        >
+                          flag
+                        </span>
+                      </button>
+                    )}
                     <button
                       onClick={() => onEditPhoto(photo)}
                       title="Edit Photo"

@@ -24,6 +24,7 @@ export interface Photo {
   camera?: string;
   exif?: string;
   featured?: boolean;
+  exhibitionPick?: boolean;
   likes?: number;
 }
 

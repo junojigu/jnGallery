@@ -12,6 +12,7 @@ interface PhotoDetailViewProps {
   onEditPhoto: (photo: Photo) => void;
   onDeletePhoto: (photo: Photo) => void;
   onToggleFeatured?: (photo: Photo) => void;
+  onToggleExhibitionPick?: (photo: Photo) => void;
   onToggleLike?: (photo: Photo) => void;
   likedPhotoIds?: string[];
   isAdmin?: boolean;
@@ -29,6 +30,7 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
   onEditPhoto,
   onDeletePhoto,
   onToggleFeatured,
+  onToggleExhibitionPick,
   onToggleLike,
   likedPhotoIds = [],
   isAdmin = false,
@@ -394,6 +396,16 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
     }
   };
 
+  const handleToggleExhibitionPick = () => {
+    if (!isAdmin && onRequireAdmin) {
+      onRequireAdmin();
+      return;
+    }
+    if (onToggleExhibitionPick) {
+      onToggleExhibitionPick(photo);
+    }
+  };
+
   return (
     <div className="bg-[#f9f9f9] text-[#1a1c1c] h-screen max-h-screen overflow-hidden flex flex-col font-sans">
       {/* Header Action Bar */}
@@ -441,6 +453,23 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
             >
               <span className="material-symbols-outlined text-[18px] sm:text-[20px] text-amber-500 leading-none select-none">
                 star
+              </span>
+            </div>
+          )}
+
+          {/* Admin-Only Exhibition Pick (전시 후보 깃발) Badge */}
+          {isAdmin && photo.exhibitionPick && (
+            <div
+              onClick={handleToggleExhibitionPick}
+              className="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center bg-emerald-500/10 border border-emerald-500/35 text-emerald-800 select-none shadow-2xs shrink-0 transition-all cursor-pointer hover:bg-emerald-500/20 hover:border-emerald-500/50 active:scale-95"
+              title="전시 후보 작품 (클릭 시 깃발 해제)"
+              aria-label="전시 후보 작품"
+            >
+              <span
+                style={{ fontVariationSettings: "'FILL' 1" }}
+                className="material-symbols-outlined text-[18px] sm:text-[20px] text-emerald-600 leading-none select-none"
+              >
+                flag
               </span>
             </div>
           )}
@@ -542,6 +571,27 @@ export const PhotoDetailView: React.FC<PhotoDetailViewProps> = ({
             >
               <span className="material-symbols-outlined text-[18px] sm:text-[20px]">
                 {photo.featured ? 'star' : 'star_outline'}
+              </span>
+            </button>
+          )}
+
+          {/* 3.6. Exhibition Pick (Flag) toggle for Admin */}
+          {isAdmin && (
+            <button
+              onClick={handleToggleExhibitionPick}
+              title={photo.exhibitionPick ? "전시 후보(깃발) 해제" : "전시 후보(깃발)로 선택"}
+              aria-label="Toggle exhibition pick"
+              className={`w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center border transition-all cursor-pointer ${
+                photo.exhibitionPick
+                  ? 'border-emerald-500 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 shadow-xs'
+                  : 'border-[#c4c7c7] text-[#747878] hover:border-emerald-500 hover:text-emerald-600 hover:bg-emerald-50/50'
+              }`}
+            >
+              <span
+                style={{ fontVariationSettings: photo.exhibitionPick ? "'FILL' 1" : "'FILL' 0" }}
+                className="material-symbols-outlined text-[18px] sm:text-[20px]"
+              >
+                flag
               </span>
             </button>
           )}
