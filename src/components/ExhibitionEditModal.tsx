@@ -43,14 +43,16 @@ export const ExhibitionEditModal: React.FC<ExhibitionEditModalProps> = ({
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
-  // Tag filter, Exhibition Pick filter & Drag & Drop Reordering states
+  // Section 3 Filter States
+  const [viewFilterMode, setViewFilterMode] = useState<'all' | 'pick' | 'featured'>('all');
   const [searchTagFilter, setSearchTagFilter] = useState('');
   const [isTagSearchOpen, setIsTagSearchOpen] = useState(false);
-  const [onlyExhibitionPick, setOnlyExhibitionPick] = useState(false);
+
+  // Section 4 Drag & Drop Reordering States
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
-  // When selectedExhibitionId or exhibitions list changes, sync formData
+  // Sync formData when selectedExhibitionId or exhibitions list changes
   useEffect(() => {
     const target = exhibitions.find((e) => e.id === selectedExhibitionId);
     if (target) {
@@ -61,7 +63,7 @@ export const ExhibitionEditModal: React.FC<ExhibitionEditModalProps> = ({
     }
   }, [selectedExhibitionId, exhibitions, isOpen]);
 
-  // Handle creating a brand new exhibition
+  // Create a brand new exhibition
   const handleAddNewExhibition = () => {
     const newId = `exhibition-${Date.now()}`;
     const newExhibition: Exhibition = {
@@ -91,24 +93,28 @@ export const ExhibitionEditModal: React.FC<ExhibitionEditModalProps> = ({
       if (p.category) tagSet.add(p.category);
       if (Array.isArray(p.tags)) {
         p.tags.forEach((t) => {
-          if (typeof t === 'string') tagSet.add(t);
-          else if (t && typeof t === 'object' && 'name' in t) tagSet.add((t as any).name);
+          if (typeof t === 'string') tagSet.add(t.replace(/^#/, ''));
+          else if (t && typeof t === 'object' && 'name' in t) tagSet.add(String((t as any).name).replace(/^#/, ''));
         });
       }
     });
     return Array.from(tagSet).filter(Boolean);
   }, [photos]);
 
-  // Count of photos marked with exhibitionPick (flag)
-  const exhibitionPickPhotos = React.useMemo(() => {
-    return photos.filter((p) => p.exhibitionPick);
-  }, [photos]);
+  const exhibitionPickPhotos = React.useMemo(() => photos.filter((p) => p.exhibitionPick), [photos]);
+  const featuredPhotos = React.useMemo(() => photos.filter((p) => p.featured), [photos]);
 
-  // Filter photos based on onlyExhibitionPick and searchTagFilter
+  // Filter photos for Section 3 based on viewFilterMode and searchTagFilter
   const filteredPhotos = React.useMemo(() => {
-    let baseList = onlyExhibitionPick ? photos.filter((p) => p.exhibitionPick) : photos;
+    let baseList = photos;
+    if (viewFilterMode === 'pick') {
+      baseList = photos.filter((p) => p.exhibitionPick);
+    } else if (viewFilterMode === 'featured') {
+      baseList = photos.filter((p) => p.featured);
+    }
+
     if (!searchTagFilter.trim()) return baseList;
-    const term = searchTagFilter.trim().toLowerCase();
+    const term = searchTagFilter.trim().toLowerCase().replace(/^#/, '');
     return baseList.filter((p) => {
       const matchTitle = p.title.toLowerCase().includes(term);
       const matchCategory = p.category?.toLowerCase().includes(term);
@@ -121,9 +127,9 @@ export const ExhibitionEditModal: React.FC<ExhibitionEditModalProps> = ({
         });
       return matchTitle || matchCategory || matchLocation || matchTags;
     });
-  }, [photos, onlyExhibitionPick, searchTagFilter]);
+  }, [photos, viewFilterMode, searchTagFilter]);
 
-  // Ordered list of selected photo objects for Drag & Drop
+  // Ordered list of selected photo objects for Section 4 Drag & Drop
   const selectedPhotoObjects = React.useMemo(() => {
     const ids = formData.exhibitionPhotoIds || [];
     const photoMap = new Map(photos.map((p) => [p.id, p]));
@@ -149,6 +155,11 @@ export const ExhibitionEditModal: React.FC<ExhibitionEditModalProps> = ({
     if (dragOverIndex !== index) {
       setDragOverIndex(index);
     }
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+    setDragOverIndex(null);
   };
 
   const handleDrop = (e: React.DragEvent, targetIndex: number) => {
@@ -223,29 +234,34 @@ export const ExhibitionEditModal: React.FC<ExhibitionEditModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fadeIn">
-      <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-[#c4c7c7]/30 overflow-hidden">
-        {/* Header */}
-        <div className="flex justify-between items-center px-6 py-4 border-b border-[#c4c7c7]/30 bg-[#f9f9f9]">
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[#000000]">collections_bookmark</span>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-3 sm:p-5 animate-fadeIn">
+      <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-neutral-200 overflow-hidden">
+        {/* Minimal Modal Header */}
+        <div className="flex justify-between items-center px-6 py-4 border-b border-neutral-200 bg-white shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-neutral-900 text-white flex items-center justify-center">
+              <span className="material-symbols-outlined text-[18px]">collections_bookmark</span>
+            </div>
             <div>
-              <h2 className="font-serif text-xl font-bold text-[#000000]">전시 관리 및 작가 노트 편집</h2>
-              <p className="text-xs text-[#747878]">여러 개의 전시를 개설하고 아카이빙할 수 있습니다.</p>
+              <h2 className="font-sans text-base sm:text-lg font-bold text-neutral-900 tracking-tight">
+                전시 관리 및 작가 노트 편집
+              </h2>
+              <p className="text-[11px] text-neutral-500">전시 정보, 작가 노트, 전시 작품 선택 및 노출 순서를 설정합니다.</p>
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-full hover:bg-[#e2e2e2] flex items-center justify-center text-[#444748] transition-colors cursor-pointer"
+            className="w-8 h-8 rounded-full hover:bg-neutral-100 flex items-center justify-center text-neutral-500 hover:text-neutral-900 transition-colors cursor-pointer"
           >
             <span className="material-symbols-outlined text-lg">close</span>
           </button>
         </div>
 
-        {/* Exhibition Switcher & Add New Bar */}
-        <div className="bg-[#f0f0f2] px-6 py-3 border-b border-[#c4c7c7]/40 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2 flex-1 min-w-[280px]">
-            <span className="text-xs font-semibold text-[#444748] shrink-0">편집할 전시:</span>
+        {/* Exhibition Switcher Bar */}
+        <div className="bg-neutral-50 px-6 py-2.5 border-b border-neutral-200 flex flex-wrap items-center justify-between gap-2.5 shrink-0">
+          <div className="flex items-center gap-2 flex-1 min-w-[240px]">
+            <span className="text-xs font-semibold text-neutral-600 shrink-0">편집 대상:</span>
             <select
               value={formData.id}
               onChange={(e) => {
@@ -255,42 +271,42 @@ export const ExhibitionEditModal: React.FC<ExhibitionEditModalProps> = ({
                   setFormData(target);
                 }
               }}
-              className="px-3 py-1.5 text-xs font-semibold bg-white border border-[#c4c7c7] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#000000] flex-1 cursor-pointer"
+              className="px-3 py-1.5 text-xs font-semibold bg-white border border-neutral-300 rounded-lg focus:outline-none focus:border-neutral-900 flex-1 cursor-pointer text-neutral-900"
             >
               {exhibitions.map((ex) => (
                 <option key={ex.id} value={ex.id}>
-                  {ex.id === activeExhibitionId ? '★ [대표/진행중] ' : ''}{ex.title} ({ex.period || '기간미정'})
+                  {ex.id === activeExhibitionId ? '★ [대표 전시] ' : ''}{ex.title} ({ex.period || '기간미정'})
                 </option>
               ))}
             </select>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             {onSetActiveExhibition && (
               <button
                 type="button"
                 onClick={() => onSetActiveExhibition(formData.id)}
                 disabled={formData.id === activeExhibitionId}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1 border ${
+                className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1 border ${
                   formData.id === activeExhibitionId
-                    ? 'bg-amber-100 text-amber-900 border-amber-300 opacity-90 cursor-default'
-                    : 'bg-white text-[#1a1c1c] border-[#c4c7c7] hover:border-[#000000]'
+                    ? 'bg-amber-50 text-amber-800 border-amber-200 cursor-default'
+                    : 'bg-white text-neutral-700 border-neutral-300 hover:border-neutral-900'
                 }`}
               >
-                <span className="material-symbols-outlined text-sm text-amber-600">
+                <span className="material-symbols-outlined text-[15px] text-amber-500">
                   {formData.id === activeExhibitionId ? 'verified' : 'star'}
                 </span>
-                <span>{formData.id === activeExhibitionId ? '현재 대표 전시' : '대표 전시로 설정'}</span>
+                <span>{formData.id === activeExhibitionId ? '대표 전시' : '대표로 지정'}</span>
               </button>
             )}
 
             <button
               type="button"
               onClick={handleAddNewExhibition}
-              className="px-3 py-1.5 bg-[#000000] text-white rounded-lg text-xs font-semibold hover:bg-opacity-80 transition-all cursor-pointer flex items-center gap-1 shadow-xs"
+              className="px-2.5 py-1.5 bg-neutral-900 text-white rounded-lg text-xs font-semibold hover:bg-neutral-800 transition-all cursor-pointer flex items-center gap-1"
             >
-              <span className="material-symbols-outlined text-sm">add</span>
-              <span>+ 새 전시 개설</span>
+              <span className="material-symbols-outlined text-[15px]">add</span>
+              <span>새 전시 추가</span>
             </button>
 
             {onDeleteExhibition && exhibitions.length > 1 && (
@@ -301,540 +317,386 @@ export const ExhibitionEditModal: React.FC<ExhibitionEditModalProps> = ({
                     onDeleteExhibition(formData.id);
                   }
                 }}
-                className="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1"
-                title="전시 삭제"
+                className="p-1.5 bg-white hover:bg-red-50 text-neutral-500 hover:text-red-600 border border-neutral-300 hover:border-red-200 rounded-lg text-xs transition-all cursor-pointer flex items-center justify-center"
+                title="이 전시 삭제"
               >
-                <span className="material-symbols-outlined text-sm">delete</span>
+                <span className="material-symbols-outlined text-[16px]">delete</span>
               </button>
             )}
           </div>
         </div>
 
-        {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-8 flex-grow">
-          {/* Section 1: Exhibition Details */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between border-b border-[#c4c7c7]/30 pb-2">
+        {/* Scrollable Form Body */}
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 py-5 space-y-7 custom-scrollbar">
+          {/* SECTION 1: Exhibition Basic Info */}
+          <section className="space-y-4">
+            <div className="flex items-center justify-between border-b border-neutral-200 pb-2">
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-lg text-[#000000]">photo_camera_back</span>
-                <h3 className="font-sans font-semibold text-base text-[#000000]">1. 전시 기본 정보</h3>
+                <span className="w-5 h-5 rounded-full bg-neutral-900 text-white text-[11px] font-bold flex items-center justify-center">
+                  1
+                </span>
+                <h3 className="font-sans font-bold text-sm text-neutral-900">전시 기본 정보</h3>
               </div>
-              <div className="flex items-center gap-3">
-                <label className="text-xs font-semibold text-[#444748]">전시 상태:</label>
+              <div className="flex items-center gap-2">
+                <label className="text-[11px] font-medium text-neutral-500">상태</label>
                 <select
                   value={formData.status || 'past'}
                   onChange={(e) => handleChange('status', e.target.value)}
-                  className="px-2.5 py-1 text-xs bg-[#f3f3f4] border border-[#c4c7c7] rounded-lg font-medium"
+                  className="px-2.5 py-1 text-xs bg-neutral-50 border border-neutral-300 rounded-lg font-medium text-neutral-800 focus:outline-none focus:border-neutral-900"
                 >
-                  <option value="active">현재 진행 중 (Active)</option>
-                  <option value="past">과거 전시 아카이브 (Past)</option>
+                  <option value="active">진행 중 (Active)</option>
+                  <option value="past">과거 전시 (Past)</option>
                   <option value="upcoming">예정 전시 (Upcoming)</option>
                 </select>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               <div>
-                <label className="block text-xs font-semibold text-[#444748] mb-1">
-                  전시 제목 (Title) *
-                </label>
+                <label className="block text-[11px] font-semibold text-neutral-600 mb-1">전시 제목 *</label>
                 <input
                   type="text"
                   value={formData.title || ''}
                   onChange={(e) => handleChange('title', e.target.value)}
                   placeholder="예: 시선의 여정: 빛과 고요"
-                  className="w-full px-3 py-2 text-sm bg-[#f3f3f4] border border-[#c4c7c7] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#000000]"
+                  className="w-full px-3 py-2 text-xs sm:text-sm bg-neutral-50 border border-neutral-300 rounded-lg focus:bg-white focus:outline-none focus:border-neutral-900 transition-colors"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-[#444748] mb-1">
-                  부제 (Subtitle)
-                </label>
+                <label className="block text-[11px] font-semibold text-neutral-600 mb-1">전시 부제</label>
                 <input
                   type="text"
                   value={formData.subtitle || ''}
                   onChange={(e) => handleChange('subtitle', e.target.value)}
                   placeholder="예: 일상의 스쳐 지나가는 순간 속 찰나의 기억들"
-                  className="w-full px-3 py-2 text-sm bg-[#f3f3f4] border border-[#c4c7c7] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#000000]"
+                  className="w-full px-3 py-2 text-xs sm:text-sm bg-neutral-50 border border-neutral-300 rounded-lg focus:bg-white focus:outline-none focus:border-neutral-900 transition-colors"
                 />
               </div>
-            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-[#444748] mb-1">
-                  전시 기간 / 안내 문구 (Period)
-                </label>
+                <label className="block text-[11px] font-semibold text-neutral-600 mb-1">전시 기간</label>
                 <input
                   type="text"
                   value={formData.period || ''}
                   onChange={(e) => handleChange('period', e.target.value)}
-                  placeholder="예: 2026.08.01 - Permanent Online Exhibition"
-                  className="w-full px-3 py-2 text-sm bg-[#f3f3f4] border border-[#c4c7c7] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#000000]"
+                  placeholder="예: 2026.08.01 - 진행 중"
+                  className="w-full px-3 py-2 text-xs sm:text-sm bg-neutral-50 border border-neutral-300 rounded-lg focus:bg-white focus:outline-none focus:border-neutral-900 transition-colors"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-[#444748] mb-1">
-                  전시 장소/공간 (Location / Venue)
-                </label>
+                <label className="block text-[11px] font-semibold text-neutral-600 mb-1">전시 장소 / 공간</label>
                 <input
                   type="text"
                   value={formData.location || ''}
                   onChange={(e) => handleChange('location', e.target.value)}
-                  placeholder="예: 온라인 3D 갤러리 / 서울 성수 스튜디오"
-                  className="w-full px-3 py-2 text-sm bg-[#f3f3f4] border border-[#c4c7c7] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#000000]"
+                  placeholder="예: 온라인 갤러리 / 서울 성수 스튜디오"
+                  className="w-full px-3 py-2 text-xs sm:text-sm bg-neutral-50 border border-neutral-300 rounded-lg focus:bg-white focus:outline-none focus:border-neutral-900 transition-colors"
                 />
               </div>
             </div>
 
-            {/* Intro Cover Image */}
-            <div>
-              <label className="block text-xs font-semibold text-[#444748] mb-1">
-                전시 포스터 / 대표 이미지 URL (Main Cover Image)
-              </label>
-              <div className="flex gap-2">
-                <input
-                  type="url"
-                  value={formData.introImage || ''}
-                  onChange={(e) => handleChange('introImage', e.target.value)}
-                  placeholder="https://..."
-                  className="flex-1 px-3 py-2 text-sm bg-[#f3f3f4] border border-[#c4c7c7] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#000000]"
-                />
-                <button
-                  type="button"
-                  onClick={() => setPhotoPickerTarget(photoPickerTarget === 'introImage' ? null : 'introImage')}
-                  className={`px-3 py-2 text-xs rounded-lg font-medium transition-all cursor-pointer flex items-center gap-1.5 shadow-xs ${
-                    photoPickerTarget === 'introImage'
-                      ? 'bg-[#000000] text-white ring-2 ring-amber-400'
-                      : 'bg-[#e2e2e2] text-[#1a1c1c] hover:bg-[#dcdddd]'
-                  }`}
-                >
-                  <span className="material-symbols-outlined text-sm">photo_library</span>
-                  갤러리 선택
-                </button>
-                <label className="px-3 py-2 text-xs bg-[#000000] text-white rounded-lg font-medium hover:bg-opacity-90 transition-colors cursor-pointer flex items-center gap-1">
-                  <span className="material-symbols-outlined text-sm">cloud_upload</span>
-                  Cloudinary
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => handleCloudinaryUpload(e, 'introImage')}
-                    className="hidden"
-                  />
-                </label>
-              </div>
-
-              {/* Inline Photo Picker for introImage */}
-              {photoPickerTarget === 'introImage' && (
-                <div className="mt-3 p-4 bg-white rounded-xl border-2 border-[#000000] shadow-lg space-y-3 animate-fadeIn">
-                  <div className="flex justify-between items-center pb-2 border-b border-[#f0f0f0]">
-                    <span className="text-xs font-bold text-[#000000] flex items-center gap-1.5">
-                      <span className="material-symbols-outlined text-base text-amber-600">photo_library</span>
-                      <span>갤러리 작품에서 대표 이미지 선택 ({photos.length}장)</span>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setPhotoPickerTarget(null)}
-                      className="text-xs text-[#747878] hover:text-[#000000] font-semibold cursor-pointer"
-                    >
-                      닫기 ✕
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 max-h-52 overflow-y-auto p-1 custom-scrollbar">
-                    {photos.map((photo) => (
-                      <button
-                        key={photo.id}
-                        type="button"
-                        onClick={() => handleSelectPhotoForTarget(photo.url)}
-                        className="group relative aspect-square rounded-lg overflow-hidden border border-[#c4c7c7] hover:border-[#000000] hover:scale-105 transition-all cursor-pointer bg-[#e2e2e2] shadow-2xs"
-                      >
-                        <img src={photo.url} alt={photo.title} className="w-full h-full object-cover" />
-                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white text-[10px] font-bold p-1 text-center">
-                          <span className="material-symbols-outlined text-base text-amber-400 mb-0.5">check_circle</span>
-                          <span className="line-clamp-1">{photo.title}</span>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
+            {/* Cover Image Compact Row */}
+            <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center bg-neutral-50 p-3 rounded-xl border border-neutral-200">
               {formData.introImage && (
-                <div className="mt-2 relative h-48 sm:h-56 w-full rounded-xl overflow-hidden border border-[#c4c7c7] bg-[#1a1c1e] flex items-center justify-center p-2 shadow-inner">
-                  <img src={formData.introImage} alt="Cover Preview" className="max-w-full max-h-full w-auto h-auto object-contain rounded-md shadow-xs" />
-                </div>
+                <img
+                  src={formData.introImage}
+                  alt="Cover Preview"
+                  className="w-20 h-14 object-cover rounded-lg border border-neutral-300 shrink-0 bg-neutral-200"
+                />
               )}
+              <div className="flex-1 w-full space-y-1.5">
+                <label className="block text-[11px] font-semibold text-neutral-600">
+                  전시 대표 커버 이미지
+                </label>
+                <div className="flex flex-wrap sm:flex-nowrap gap-1.5">
+                  <input
+                    type="url"
+                    value={formData.introImage || ''}
+                    onChange={(e) => handleChange('introImage', e.target.value)}
+                    placeholder="https://..."
+                    className="flex-1 min-w-[160px] px-2.5 py-1.5 text-xs bg-white border border-neutral-300 rounded-lg focus:outline-none focus:border-neutral-900"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setPhotoPickerTarget('introImage')}
+                    className="px-2.5 py-1.5 text-xs rounded-lg font-medium bg-white border border-neutral-300 hover:border-neutral-900 text-neutral-800 cursor-pointer flex items-center gap-1 shrink-0 transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-[15px]">photo_library</span>
+                    갤러리 선택
+                  </button>
+                  <label className="px-2.5 py-1.5 text-xs bg-neutral-900 text-white rounded-lg font-medium hover:bg-neutral-800 transition-colors cursor-pointer flex items-center gap-1 shrink-0">
+                    <span className="material-symbols-outlined text-[15px]">cloud_upload</span>
+                    업로드
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleCloudinaryUpload(e, 'introImage')}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+              </div>
             </div>
 
-            {/* Intro Text */}
             <div>
-              <label className="block text-xs font-semibold text-[#444748] mb-1">
-                전시 기획 서문 / 소개 글 (Exhibition Introduction)
+              <label className="block text-[11px] font-semibold text-neutral-600 mb-1">
+                전시 소개 서문 (Introduction)
               </label>
               <textarea
-                rows={4}
+                rows={3}
                 value={formData.introText || ''}
                 onChange={(e) => handleChange('introText', e.target.value)}
-                placeholder="해당 전시회의 기획 의도 및 컨셉을 상세하게 작성하세요."
-                className="w-full px-3 py-2 text-sm bg-[#f3f3f4] border border-[#c4c7c7] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#000000] leading-relaxed"
+                placeholder="전시 기획 의도 및 소개글을 입력하세요."
+                className="w-full px-3 py-2 text-xs sm:text-sm bg-neutral-50 border border-neutral-300 rounded-lg focus:bg-white focus:outline-none focus:border-neutral-900 leading-relaxed transition-colors"
               />
             </div>
-          </div>
+          </section>
 
-          {/* Section 2: Artist Note Details */}
-          <div className="space-y-4 pt-2">
-            <div className="flex items-center gap-2 border-b border-[#c4c7c7]/30 pb-2">
-              <span className="material-symbols-outlined text-lg text-[#000000]">person_pin</span>
-              <h3 className="font-sans font-semibold text-base text-[#000000]">2. 이 전시의 작가 노트 (Artist Statement)</h3>
+          {/* SECTION 2: Artist Note */}
+          <section className="space-y-4">
+            <div className="flex items-center gap-2 border-b border-neutral-200 pb-2">
+              <span className="w-5 h-5 rounded-full bg-neutral-900 text-white text-[11px] font-bold flex items-center justify-center">
+                2
+              </span>
+              <h3 className="font-sans font-bold text-sm text-neutral-900">작가 노트 (Artist Statement)</h3>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               <div>
-                <label className="block text-xs font-semibold text-[#444748] mb-1">
-                  작가 이름 (Artist Name)
-                </label>
+                <label className="block text-[11px] font-semibold text-neutral-600 mb-1">작가 이름</label>
                 <input
                   type="text"
                   value={formData.artistName || ''}
                   onChange={(e) => handleChange('artistName', e.target.value)}
                   placeholder="예: Juno"
-                  className="w-full px-3 py-2 text-sm bg-[#f3f3f4] border border-[#c4c7c7] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#000000]"
+                  className="w-full px-3 py-2 text-xs sm:text-sm bg-neutral-50 border border-neutral-300 rounded-lg focus:bg-white focus:outline-none focus:border-neutral-900 transition-colors"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-[#444748] mb-1">
-                  작가 프로필 / 수식어 (Artist Role)
-                </label>
+                <label className="block text-[11px] font-semibold text-neutral-600 mb-1">작가 역할 / 직함</label>
                 <input
                   type="text"
                   value={formData.artistRole || ''}
                   onChange={(e) => handleChange('artistRole', e.target.value)}
                   placeholder="예: Visual Artist / Photographer"
-                  className="w-full px-3 py-2 text-sm bg-[#f3f3f4] border border-[#c4c7c7] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#000000]"
+                  className="w-full px-3 py-2 text-xs sm:text-sm bg-neutral-50 border border-neutral-300 rounded-lg focus:bg-white focus:outline-none focus:border-neutral-900 transition-colors"
                 />
               </div>
             </div>
 
-            {/* Artist Photo */}
-            <div>
-              <label className="block text-xs font-semibold text-[#444748] mb-1">
-                작가 프로필 사진 URL (Artist Photo URL)
-              </label>
-              <div className="flex gap-2">
-                <input
-                  type="url"
-                  value={formData.artistPhoto || ''}
-                  onChange={(e) => handleChange('artistPhoto', e.target.value)}
-                  placeholder="https://..."
-                  className="flex-1 px-3 py-2 text-sm bg-[#f3f3f4] border border-[#c4c7c7] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#000000]"
-                />
-                <button
-                  type="button"
-                  onClick={() => setPhotoPickerTarget(photoPickerTarget === 'artistPhoto' ? null : 'artistPhoto')}
-                  className={`px-3 py-2 text-xs rounded-lg font-medium transition-all cursor-pointer flex items-center gap-1.5 shadow-xs ${
-                    photoPickerTarget === 'artistPhoto'
-                      ? 'bg-[#000000] text-white ring-2 ring-amber-400'
-                      : 'bg-[#e2e2e2] text-[#1a1c1c] hover:bg-[#dcdddd]'
-                  }`}
-                >
-                  <span className="material-symbols-outlined text-sm">photo_library</span>
-                  갤러리 선택
-                </button>
-                <label className="px-3 py-2 text-xs bg-[#000000] text-white rounded-lg font-medium hover:bg-opacity-90 transition-colors cursor-pointer flex items-center gap-1">
-                  <span className="material-symbols-outlined text-sm">cloud_upload</span>
-                  Cloudinary
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => handleCloudinaryUpload(e, 'artistPhoto')}
-                    className="hidden"
-                  />
-                </label>
-              </div>
-
-              {/* Inline Photo Picker for artistPhoto */}
-              {photoPickerTarget === 'artistPhoto' && (
-                <div className="mt-3 p-4 bg-white rounded-xl border-2 border-[#000000] shadow-lg space-y-3 animate-fadeIn">
-                  <div className="flex justify-between items-center pb-2 border-b border-[#f0f0f0]">
-                    <span className="text-xs font-bold text-[#000000] flex items-center gap-1.5">
-                      <span className="material-symbols-outlined text-base text-amber-600">photo_library</span>
-                      <span>갤러리 작품에서 작가 프로필 사진 선택 ({photos.length}장)</span>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setPhotoPickerTarget(null)}
-                      className="text-xs text-[#747878] hover:text-[#000000] font-semibold cursor-pointer"
-                    >
-                      닫기 ✕
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 max-h-52 overflow-y-auto p-1 custom-scrollbar">
-                    {photos.map((photo) => (
-                      <button
-                        key={photo.id}
-                        type="button"
-                        onClick={() => handleSelectPhotoForTarget(photo.url)}
-                        className="group relative aspect-square rounded-lg overflow-hidden border border-[#c4c7c7] hover:border-[#000000] hover:scale-105 transition-all cursor-pointer bg-[#e2e2e2] shadow-2xs"
-                      >
-                        <img src={photo.url} alt={photo.title} className="w-full h-full object-cover" />
-                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white text-[10px] font-bold p-1 text-center">
-                          <span className="material-symbols-outlined text-base text-amber-400 mb-0.5">check_circle</span>
-                          <span className="line-clamp-1">{photo.title}</span>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
+            {/* Artist Photo Compact Row */}
+            <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center bg-neutral-50 p-3 rounded-xl border border-neutral-200">
               {formData.artistPhoto && (
-                <div className="mt-2 flex items-center gap-3">
-                  <img
-                    src={formData.artistPhoto}
-                    alt="Artist Profile Preview"
-                    className="w-16 h-16 rounded-full object-cover border border-[#c4c7c7]"
-                  />
-                  <span className="text-xs text-[#747878]">프로필 이미지 미리보기</span>
-                </div>
+                <img
+                  src={formData.artistPhoto}
+                  alt="Artist Preview"
+                  className="w-12 h-12 rounded-full object-cover border border-neutral-300 shrink-0 bg-neutral-200"
+                />
               )}
+              <div className="flex-1 w-full space-y-1.5">
+                <label className="block text-[11px] font-semibold text-neutral-600">작가 프로필 사진</label>
+                <div className="flex flex-wrap sm:flex-nowrap gap-1.5">
+                  <input
+                    type="url"
+                    value={formData.artistPhoto || ''}
+                    onChange={(e) => handleChange('artistPhoto', e.target.value)}
+                    placeholder="https://..."
+                    className="flex-1 min-w-[160px] px-2.5 py-1.5 text-xs bg-white border border-neutral-300 rounded-lg focus:outline-none focus:border-neutral-900"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setPhotoPickerTarget('artistPhoto')}
+                    className="px-2.5 py-1.5 text-xs rounded-lg font-medium bg-white border border-neutral-300 hover:border-neutral-900 text-neutral-800 cursor-pointer flex items-center gap-1 shrink-0 transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-[15px]">photo_library</span>
+                    갤러리 선택
+                  </button>
+                  <label className="px-2.5 py-1.5 text-xs bg-neutral-900 text-white rounded-lg font-medium hover:bg-neutral-800 transition-colors cursor-pointer flex items-center gap-1 shrink-0">
+                    <span className="material-symbols-outlined text-[15px]">cloud_upload</span>
+                    업로드
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleCloudinaryUpload(e, 'artistPhoto')}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+              </div>
             </div>
 
-            {/* Artist Quote */}
             <div>
-              <label className="block text-xs font-semibold text-[#444748] mb-1">
-                이 전시의 대표 문구 / 인용구 (Artist Quote)
-              </label>
+              <label className="block text-[11px] font-semibold text-neutral-600 mb-1">대표 인용구 (Artist Quote)</label>
               <input
                 type="text"
                 value={formData.artistQuote || ''}
                 onChange={(e) => handleChange('artistQuote', e.target.value)}
                 placeholder="예: 카메라는 눈이 아닌 마음의 렌즈로 세상을 기록하는 정직한 거울입니다."
-                className="w-full px-3 py-2 text-sm bg-[#f3f3f4] border border-[#c4c7c7] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#000000] italic font-serif"
+                className="w-full px-3 py-2 text-xs sm:text-sm bg-neutral-50 border border-neutral-300 rounded-lg focus:bg-white focus:outline-none focus:border-neutral-900 italic font-serif transition-colors"
               />
             </div>
 
-            {/* Artist Note Text */}
             <div>
-              <label className="block text-xs font-semibold text-[#444748] mb-1">
-                이 전시를 기획하며 쓴 작가 노트 본문 (Artist Statement)
-              </label>
+              <label className="block text-[11px] font-semibold text-neutral-600 mb-1">작가 노트 본문</label>
               <textarea
-                rows={6}
+                rows={4}
                 value={formData.artistNote || ''}
                 onChange={(e) => handleChange('artistNote', e.target.value)}
-                placeholder="이 당시 전시를 준비하며 느낀 예술 철학, 생각, 에세이를 적어주세요."
-                className="w-full px-3 py-2 text-sm bg-[#f3f3f4] border border-[#c4c7c7] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#000000] leading-relaxed"
+                placeholder="전시를 준비하며 느낀 생각과 작가 노트를 작성하세요."
+                className="w-full px-3 py-2 text-xs sm:text-sm bg-neutral-50 border border-neutral-300 rounded-lg focus:bg-white focus:outline-none focus:border-neutral-900 leading-relaxed transition-colors"
               />
             </div>
-          </div>
+          </section>
 
-          {/* Section 3: Exhibition Artworks Curation & Drag-and-Drop Reordering */}
-          <div className="space-y-5 pt-2">
-            <div className="flex items-center justify-between border-b border-[#c4c7c7]/30 pb-2">
+          {/* SECTION 3: Select Photos for Exhibition (Swapped to #3) */}
+          <section className="space-y-3.5">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-200 pb-2">
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-lg text-[#000000]">collections</span>
-                <h3 className="font-sans font-semibold text-base text-[#000000]">
-                  3. 해당 전시 수록 작품 큐레이션 및 순서 변경
-                </h3>
+                <span className="w-5 h-5 rounded-full bg-neutral-900 text-white text-[11px] font-bold flex items-center justify-center">
+                  3
+                </span>
+                <div>
+                  <h3 className="font-sans font-bold text-sm text-neutral-900">전시할 사진 선택</h3>
+                </div>
+                <span className="text-xs text-neutral-500">
+                  — 사진을 클릭하여 이 전시에 포함/제외하세요
+                </span>
               </div>
-              <span className="text-xs text-[#747878] font-medium">
-                선택됨: <strong className="text-[#000000]">{selectedPhotoObjects.length}</strong> / {photos.length}점
+              <span className="text-xs text-neutral-500 font-medium">
+                표시 중: <strong className="text-neutral-900">{filteredPhotos.length}</strong> / 전체 {photos.length}장
               </span>
             </div>
 
-            {/* Selected Photos Order Track (Drag & Drop Reordering Area) */}
-            <div className="bg-[#f0f0f2] p-3.5 rounded-2xl border border-[#c4c7c7] space-y-2.5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-[#1a1c1c]">
-                  <span className="material-symbols-outlined text-base text-amber-600">drag_indicator</span>
-                  <span>선택된 전시 작품 순서 (카드를 드래그하거나 화살표로 순서를 변경하세요)</span>
-                </div>
-                {selectedPhotoObjects.length > 0 && (
+            {/* Clean Minimal Filter & Quick Select Toolbar */}
+            <div className="flex flex-col gap-2 bg-neutral-50 p-3 rounded-xl border border-neutral-200">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                {/* Left: View Filter Tabs */}
+                <div className="flex flex-wrap items-center gap-1.5">
                   <button
                     type="button"
-                    onClick={() => setFormData((prev) => ({ ...prev, exhibitionPhotoIds: [] }))}
-                    className="text-[11px] text-red-600 hover:underline font-medium cursor-pointer"
+                    onClick={() => setViewFilterMode('all')}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                      viewFilterMode === 'all'
+                        ? 'bg-neutral-900 text-white font-semibold'
+                        : 'bg-white text-neutral-600 border border-neutral-200 hover:border-neutral-400'
+                    }`}
                   >
-                    전체 해제
+                    전체 ({photos.length})
                   </button>
-                )}
-              </div>
 
-              {selectedPhotoObjects.length === 0 ? (
-                <div className="py-6 text-center text-xs text-[#747878] border border-dashed border-[#c4c7c7] rounded-xl bg-white">
-                  아래 사진 목록에서 작품을 클릭하여 이 전시에 포함시킬 사진을 선택해 주세요.
-                </div>
-              ) : (
-                <div className="flex gap-2.5 overflow-x-auto pb-2 pt-1 px-1 custom-scrollbar">
-                  {selectedPhotoObjects.map((photo, index) => (
-                    <div
-                      key={photo.id}
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, index)}
-                      onDragOver={(e) => handleDragOver(e, index)}
-                      onDrop={(e) => handleDrop(e, index)}
-                      className={`relative flex-shrink-0 w-28 bg-white rounded-xl border p-1.5 shadow-xs transition-all cursor-grab active:cursor-grabbing group ${
-                        dragOverIndex === index
-                          ? 'border-amber-500 scale-105 ring-2 ring-amber-300'
-                          : 'border-[#c4c7c7] hover:border-[#000000]'
+                  <button
+                    type="button"
+                    onClick={() => setViewFilterMode(viewFilterMode === 'pick' ? 'all' : 'pick')}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer flex items-center gap-1 ${
+                      viewFilterMode === 'pick'
+                        ? 'bg-emerald-600 text-white font-semibold shadow-2xs'
+                        : 'bg-white text-emerald-800 border border-emerald-200 hover:bg-emerald-50'
+                    }`}
+                    title="갤러리에서 깃발 표시한 전시 후보 사진만 모아봅니다"
+                  >
+                    <span
+                      style={{ fontVariationSettings: "'FILL' 1" }}
+                      className={`material-symbols-outlined text-[14px] ${
+                        viewFilterMode === 'pick' ? 'text-white' : 'text-emerald-600'
                       }`}
                     >
-                      {/* Order Badge */}
-                      <div className="absolute top-2 left-2 bg-[#000000] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full z-10 shadow-xs">
-                        {String(index + 1).padStart(2, '0')}
-                      </div>
+                      flag
+                    </span>
+                    <span>전시 후보 ({exhibitionPickPhotos.length})</span>
+                  </button>
 
-                      {/* Remove Button */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const nextIds = (formData.exhibitionPhotoIds || []).filter((id) => id !== photo.id);
-                          setFormData((prev) => ({ ...prev, exhibitionPhotoIds: nextIds }));
-                        }}
-                        title="전시에서 제외"
-                        className="absolute top-2 right-2 bg-black/60 hover:bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs z-10 transition-colors cursor-pointer"
-                      >
-                        ✕
-                      </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewFilterMode(viewFilterMode === 'featured' ? 'all' : 'featured')}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer flex items-center gap-1 ${
+                      viewFilterMode === 'featured'
+                        ? 'bg-amber-500 text-white font-semibold shadow-2xs'
+                        : 'bg-white text-amber-800 border border-amber-200 hover:bg-amber-50'
+                    }`}
+                    title="관리자 추천(★) 사진만 모아봅니다"
+                  >
+                    <span className="material-symbols-outlined text-[14px]">star</span>
+                    <span>추천작 ({featuredPhotos.length})</span>
+                  </button>
 
-                      {/* Image Preview */}
-                      <div className="aspect-square rounded-lg overflow-hidden bg-[#e2e2e2] mb-1.5">
-                        <img src={photo.url} alt={photo.title} className="w-full h-full object-cover pointer-events-none" />
-                      </div>
-
-                      {/* Title */}
-                      <p className="text-[11px] font-semibold text-[#000000] truncate text-center px-1">
-                        {photo.title}
-                      </p>
-
-                      {/* Left / Right Arrow Reorder Controls */}
-                      <div className="flex items-center justify-between mt-1 pt-1 border-t border-[#f0f0f0]">
-                        <button
-                          type="button"
-                          disabled={index === 0}
-                          onClick={() => handleMovePhoto(index, index - 1)}
-                          title="앞으로 이동"
-                          className="w-6 h-5 flex items-center justify-center rounded bg-[#f0f0f0] hover:bg-[#000000] hover:text-white disabled:opacity-30 disabled:hover:bg-[#f0f0f0] disabled:hover:text-inherit text-xs cursor-pointer transition-colors"
-                        >
-                          ◀
-                        </button>
-                        <span className="text-[9px] text-[#747878] font-mono">#{index + 1}</span>
-                        <button
-                          type="button"
-                          disabled={index === selectedPhotoObjects.length - 1}
-                          onClick={() => handleMovePhoto(index, index + 1)}
-                          title="뒤로 이동"
-                          className="w-6 h-5 flex items-center justify-center rounded bg-[#f0f0f0] hover:bg-[#000000] hover:text-white disabled:opacity-30 disabled:hover:bg-[#f0f0f0] disabled:hover:text-inherit text-xs cursor-pointer transition-colors"
-                        >
-                          ▶
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setIsTagSearchOpen(!isTagSearchOpen)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer flex items-center gap-1 ${
+                      isTagSearchOpen || searchTagFilter
+                        ? 'bg-neutral-900 text-white font-semibold'
+                        : 'bg-white text-neutral-700 border border-neutral-200 hover:border-neutral-400'
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-[14px]">search</span>
+                    <span>태그 검색</span>
+                  </button>
                 </div>
-              )}
-            </div>
 
-            {/* Curation Quick Action Buttons Bar */}
-            <div className="space-y-2.5">
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setOnlyExhibitionPick(!onlyExhibitionPick)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-all flex items-center gap-1 border ${
-                    onlyExhibitionPick
-                      ? 'bg-emerald-700 text-white border-emerald-700 shadow-sm ring-2 ring-emerald-200'
-                      : 'bg-emerald-50/70 text-emerald-900 border-emerald-300 hover:bg-emerald-100'
-                  }`}
-                  title="갤러리에서 깃발(전시 후보) 표시한 작품만 아래 목록에 필터링하여 보여줍니다"
-                >
-                  <span
-                    style={{ fontVariationSettings: "'FILL' 1" }}
-                    className={`material-symbols-outlined text-sm ${onlyExhibitionPick ? 'text-white' : 'text-emerald-600'}`}
+                {/* Right: Bulk Selection Quick Actions */}
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <button
+                    type="button"
+                    disabled={exhibitionPickPhotos.length === 0}
+                    onClick={() => {
+                      const pickIds = exhibitionPickPhotos.map((p) => p.id);
+                      setFormData((prev) => ({ ...prev, exhibitionPhotoIds: pickIds }));
+                    }}
+                    className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-white hover:bg-emerald-50 text-emerald-800 border border-emerald-300 disabled:opacity-40 disabled:pointer-events-none cursor-pointer transition-colors"
+                    title="깃발 표시된 전시 후보 사진들을 일괄 선택합니다"
                   >
-                    flag
-                  </span>
-                  <span>전시 후보(깃발)만 보기 ({exhibitionPickPhotos.length}장)</span>
-                </button>
+                    + 후보작 일괄 선택
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    const pickIds = photos.filter((p) => p.exhibitionPick).map((p) => p.id);
-                    setFormData((prev) => ({ ...prev, exhibitionPhotoIds: pickIds }));
-                  }}
-                  disabled={exhibitionPickPhotos.length === 0}
-                  className="px-3 py-1.5 bg-white border border-emerald-400 hover:border-emerald-600 hover:bg-emerald-50/50 text-emerald-900 disabled:opacity-40 disabled:pointer-events-none rounded-lg text-xs font-semibold cursor-pointer transition-all flex items-center gap-1"
-                  title="갤러리에서 깃발 표시한 전시 후보 사진들을 이 전시 작품으로 일괄 선택합니다"
-                >
-                  <span
-                    style={{ fontVariationSettings: "'FILL' 1" }}
-                    className="material-symbols-outlined text-sm text-emerald-600"
+                  <button
+                    type="button"
+                    disabled={featuredPhotos.length === 0}
+                    onClick={() => {
+                      const featIds = featuredPhotos.map((p) => p.id);
+                      setFormData((prev) => ({ ...prev, exhibitionPhotoIds: featIds }));
+                    }}
+                    className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-white hover:bg-amber-50 text-amber-800 border border-amber-300 disabled:opacity-40 disabled:pointer-events-none cursor-pointer transition-colors"
+                    title="관리자 추천(★) 사진들을 일괄 선택합니다"
                   >
-                    flag
-                  </span>
-                  <span>전시 후보 사진만 선택 ({exhibitionPickPhotos.length}장)</span>
-                </button>
+                    + 추천작 일괄 선택
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={() => setIsTagSearchOpen(!isTagSearchOpen)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-all flex items-center gap-1 border ${
-                    isTagSearchOpen || searchTagFilter
-                      ? 'bg-[#000000] text-white border-[#000000] shadow-sm'
-                      : 'bg-white text-[#1a1c1c] border-[#c4c7c7] hover:border-[#000000]'
-                  }`}
-                >
-                  <span className="material-symbols-outlined text-sm">sell</span>
-                  <span>🏷️ 태그로 검색하여 선택하기</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    const featuredIds = photos.filter((p) => p.featured).map((p) => p.id);
-                    setFormData((prev) => ({ ...prev, exhibitionPhotoIds: featuredIds }));
-                  }}
-                  className="px-3 py-1.5 bg-white border border-[#c4c7c7] hover:border-[#000000] text-[#1a1c1c] rounded-lg text-xs font-semibold cursor-pointer transition-all"
-                >
-                  ⭐ 추천(Featured) 사진만 선택
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFormData((prev) => ({ ...prev, exhibitionPhotoIds: photos.map((p) => p.id) }));
-                  }}
-                  className="px-3 py-1.5 bg-white border border-[#c4c7c7] hover:border-[#000000] text-[#1a1c1c] rounded-lg text-xs font-semibold cursor-pointer transition-all"
-                >
-                  🖼️ 전체 사진 선택
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFormData((prev) => ({ ...prev, exhibitionPhotoIds: photos.map((p) => p.id) }));
+                    }}
+                    className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-white hover:bg-neutral-100 text-neutral-700 border border-neutral-300 cursor-pointer transition-colors"
+                  >
+                    전체 선택
+                  </button>
+                </div>
               </div>
 
-              {/* Tag Search & Filter Drawer */}
+              {/* Expandable Tag Search Row */}
               {(isTagSearchOpen || searchTagFilter) && (
-                <div className="p-3 bg-white rounded-xl border border-[#c4c7c7] shadow-xs space-y-2.5 animate-fadeIn">
-                  <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center justify-between">
+                <div className="pt-2 border-t border-neutral-200 space-y-2 animate-fadeIn">
+                  <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
                     <div className="relative flex-1">
-                      <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-base text-[#747878]">
+                      <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-neutral-400">
                         search
                       </span>
                       <input
                         type="text"
                         value={searchTagFilter}
                         onChange={(e) => setSearchTagFilter(e.target.value)}
-                        placeholder="태그 또는 키워드 검색 (예: 바다, 풍경, 자연, 흑백...)"
-                        className="w-full pl-8 pr-8 py-1.5 text-xs bg-[#f3f3f4] border border-[#c4c7c7] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#000000]"
+                        placeholder="태그, 제목, 장소 검색 (예: 풍경, 바다, 흑백...)"
+                        className="w-full pl-8 pr-7 py-1.5 text-xs bg-white border border-neutral-300 rounded-lg focus:outline-none focus:border-neutral-900"
                       />
                       {searchTagFilter && (
                         <button
                           type="button"
                           onClick={() => setSearchTagFilter('')}
-                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-[#747878] hover:text-[#000000]"
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-neutral-400 hover:text-neutral-900 cursor-pointer"
                         >
                           ✕
                         </button>
@@ -849,26 +711,24 @@ export const ExhibitionEditModal: React.FC<ExhibitionEditModalProps> = ({
                           filteredPhotos.forEach((p) => currentSelected.add(p.id));
                           setFormData((prev) => ({ ...prev, exhibitionPhotoIds: Array.from(currentSelected) }));
                         }}
-                        className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold cursor-pointer shrink-0 transition-colors flex items-center gap-1 shadow-xs"
+                        className="px-3 py-1.5 bg-neutral-900 hover:bg-neutral-800 text-white rounded-lg text-xs font-semibold cursor-pointer shrink-0 transition-colors"
                       >
-                        <span className="material-symbols-outlined text-sm">add_circle</span>
-                        <span>'{searchTagFilter}' 태그 검색결과 ({filteredPhotos.length}장) 모두 선택 추가</span>
+                        검색된 {filteredPhotos.length}장 모두 추가
                       </button>
                     )}
                   </div>
 
                   {allUniqueTags.length > 0 && (
-                    <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-[#f0f0f0]">
-                      <span className="text-[11px] text-[#747878] font-semibold mr-1">인기 태그:</span>
-                      {allUniqueTags.slice(0, 12).map((tag) => (
+                    <div className="flex flex-wrap items-center gap-1">
+                      {allUniqueTags.slice(0, 14).map((tag) => (
                         <button
                           key={tag}
                           type="button"
-                          onClick={() => setSearchTagFilter(tag)}
+                          onClick={() => setSearchTagFilter(searchTagFilter === tag ? '' : tag)}
                           className={`px-2 py-0.5 rounded-full text-[11px] font-medium transition-all cursor-pointer ${
                             searchTagFilter.toLowerCase() === tag.toLowerCase()
-                              ? 'bg-[#000000] text-white font-bold'
-                              : 'bg-[#f0f0f0] text-[#444748] hover:bg-[#e2e2e2] hover:text-[#000000]'
+                              ? 'bg-neutral-900 text-white'
+                              : 'bg-white text-neutral-600 border border-neutral-200 hover:border-neutral-400'
                           }`}
                         >
                           #{tag}
@@ -880,100 +740,206 @@ export const ExhibitionEditModal: React.FC<ExhibitionEditModalProps> = ({
               )}
             </div>
 
-            {/* Photos Select Grid */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-xs text-[#747878]">
-                <span>
-                  사진을 클릭하여 이 전시에 포함/제외하세요 ({filteredPhotos.length}장 표시됨)
-                </span>
-                <div className="flex items-center gap-2">
-                  {onlyExhibitionPick && (
-                    <span className="text-emerald-700 font-semibold flex items-center gap-1">
-                      <span
-                        style={{ fontVariationSettings: "'FILL' 1" }}
-                        className="material-symbols-outlined text-xs"
-                      >
-                        flag
-                      </span>
-                      전시 후보(깃발) 필터 적용 중
-                      <button
-                        type="button"
-                        onClick={() => setOnlyExhibitionPick(false)}
-                        className="text-emerald-900 hover:underline ml-0.5 cursor-pointer"
-                      >
-                        ✕
-                      </button>
-                    </span>
-                  )}
-                  {searchTagFilter && (
-                    <span className="text-amber-700 font-semibold">필터: '{searchTagFilter}'</span>
-                  )}
-                </div>
+            {/* Section 3 Photo Selection Grid */}
+            {filteredPhotos.length === 0 ? (
+              <div className="py-10 text-center text-xs text-neutral-500 bg-neutral-50 rounded-xl border border-neutral-200">
+                {viewFilterMode === 'pick'
+                  ? '깃발(전시 후보) 표시된 사진이 없습니다. 갤러리 페이지에서 전시할 사진에 깃발 표시를 해보세요.'
+                  : '조건에 일치하는 사진이 없습니다.'}
               </div>
+            ) : (
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2.5 max-h-64 overflow-y-auto p-2.5 bg-neutral-50 rounded-xl border border-neutral-200 custom-scrollbar">
+                {filteredPhotos.map((photo) => {
+                  const currentSelected = formData.exhibitionPhotoIds || [];
+                  const isSelected = currentSelected.includes(photo.id);
+                  const selectedOrder = isSelected ? currentSelected.indexOf(photo.id) + 1 : null;
 
-              {filteredPhotos.length === 0 ? (
-                <div className="py-8 text-center text-xs text-[#747878] bg-[#f3f3f4] rounded-xl border border-[#c4c7c7]">
-                  {onlyExhibitionPick
-                    ? '갤러리에서 깃발(전시 후보) 표시한 사진이 없습니다. 갤러리 페이지에서 전시할 사진에 깃발 표시를 해보세요.'
-                    : '조건에 일치하는 사진이 없습니다.'}
-                </div>
-              ) : (
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 max-h-60 overflow-y-auto p-2 bg-[#f3f3f4] rounded-xl border border-[#c4c7c7] custom-scrollbar">
-                  {filteredPhotos.map((photo) => {
-                    const currentSelected = formData.exhibitionPhotoIds || [];
-                    const isSelected = currentSelected.includes(photo.id);
-                    const selectedOrder = isSelected ? currentSelected.indexOf(photo.id) + 1 : null;
+                  const togglePhoto = () => {
+                    const nextSelected = isSelected
+                      ? currentSelected.filter((id) => id !== photo.id)
+                      : [...currentSelected, photo.id];
+                    setFormData((prev) => ({ ...prev, exhibitionPhotoIds: nextSelected }));
+                  };
 
-                    const togglePhoto = () => {
-                      const nextSelected = isSelected
-                        ? currentSelected.filter((id) => id !== photo.id)
-                        : [...currentSelected, photo.id];
-                      setFormData((prev) => ({ ...prev, exhibitionPhotoIds: nextSelected }));
-                    };
+                  return (
+                    <div
+                      key={photo.id}
+                      onClick={togglePhoto}
+                      className={`group relative aspect-square rounded-lg overflow-hidden cursor-pointer border-2 transition-all select-none ${
+                        isSelected
+                          ? 'border-neutral-900 ring-2 ring-neutral-900/20 scale-[0.98]'
+                          : 'border-transparent opacity-70 hover:opacity-100'
+                      }`}
+                    >
+                      <img src={photo.url} alt={photo.title} className="w-full h-full object-cover" />
 
-                    return (
-                      <div
-                        key={photo.id}
-                        onClick={togglePhoto}
-                        className={`relative aspect-square rounded-lg overflow-hidden cursor-pointer border-2 transition-all ${
-                          isSelected
-                            ? 'border-[#000000] ring-2 ring-amber-400 scale-[0.98]'
-                            : 'border-transparent opacity-60 hover:opacity-100 hover:scale-102'
-                        }`}
-                      >
-                        <img src={photo.url} alt={photo.title} className="w-full h-full object-cover" />
-
-                        {/* Exhibition Pick Flag Indicator (Top Left) */}
+                      {/* Top-Left Status Badges (Flag / Star) */}
+                      <div className="absolute top-1.5 left-1.5 flex items-center gap-1">
                         {photo.exhibitionPick && (
                           <div
-                            className="absolute top-1 left-1 bg-emerald-600/90 text-white rounded-full w-5 h-5 flex items-center justify-center shadow-xs"
-                            title="전시 후보(깃발) 작품"
+                            className="bg-emerald-600/90 text-white rounded-full w-4.5 h-4.5 flex items-center justify-center shadow-xs"
+                            title="전시 후보(깃발)"
                           >
                             <span
                               style={{ fontVariationSettings: "'FILL' 1" }}
-                              className="material-symbols-outlined text-[12px] leading-none"
+                              className="material-symbols-outlined text-[11px] leading-none"
                             >
                               flag
                             </span>
                           </div>
                         )}
-
-                        {isSelected && (
-                          <div className="absolute top-1 right-1 bg-[#000000] text-white rounded-full text-[10px] font-bold w-5 h-5 flex items-center justify-center shadow-md">
-                            {selectedOrder}
+                        {photo.featured && (
+                          <div
+                            className="bg-amber-500/90 text-white rounded-full w-4.5 h-4.5 flex items-center justify-center shadow-xs"
+                            title="관리자 추천"
+                          >
+                            <span
+                              style={{ fontVariationSettings: "'FILL' 1" }}
+                              className="material-symbols-outlined text-[11px] leading-none"
+                            >
+                              star
+                            </span>
                           </div>
                         )}
-
-                        <div className="absolute bottom-0 inset-x-0 bg-black/60 text-white text-[9px] px-1 py-0.5 truncate text-center">
-                          {photo.title}
-                        </div>
                       </div>
-                    );
-                  })}
-                </div>
-              )}
+
+                      {/* Top-Right Selected Order Number (1, 2, 3...) */}
+                      {isSelected && (
+                        <div className="absolute top-1.5 right-1.5 bg-neutral-900 text-white rounded-full text-[11px] font-bold min-w-[20px] h-5 px-1 flex items-center justify-center shadow-md">
+                          {selectedOrder}
+                        </div>
+                      )}
+
+                      <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/75 via-black/40 to-transparent text-white text-[10px] px-1.5 py-1 truncate text-center">
+                        {photo.title}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+
+          {/* SECTION 4: Exhibition Artworks Curation & Multi-Row Reordering (Swapped to #4) */}
+          <section className="space-y-3.5">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-200 pb-2">
+              <div className="flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-neutral-900 text-white text-[11px] font-bold flex items-center justify-center">
+                  4
+                </span>
+                <h3 className="font-sans font-bold text-sm text-neutral-900">
+                  전시 작품 큐레이션 및 순서 변경
+                </h3>
+                <span className="text-xs text-neutral-500">
+                  — 마우스로 드래그 앤 드롭하거나 화살표로 순서를 조정하세요
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-neutral-600 font-medium">
+                  총 <strong className="text-neutral-900 font-bold">{selectedPhotoObjects.length}</strong>점 수록
+                </span>
+                {selectedPhotoObjects.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setFormData((prev) => ({ ...prev, exhibitionPhotoIds: [] }))}
+                    className="text-xs text-rose-600 hover:text-rose-700 hover:underline font-semibold cursor-pointer"
+                  >
+                    전체 선택 해제
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
+
+            {selectedPhotoObjects.length === 0 ? (
+              <div className="py-10 text-center text-xs text-neutral-500 border border-dashed border-neutral-300 rounded-xl bg-neutral-50">
+                위 <strong>3. 전시할 사진 선택</strong> 목록에서 전시에 수록할 작품을 먼저 선택해 주세요.
+              </div>
+            ) : (
+              /* 3-Row Friendly Grid Layout for Drag & Drop Reordering */
+              <div className="bg-neutral-50 p-3.5 rounded-xl border border-neutral-200">
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 max-h-[430px] overflow-y-auto p-1 custom-scrollbar">
+                  {selectedPhotoObjects.map((photo, index) => (
+                    <div
+                      key={photo.id}
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, index)}
+                      onDragOver={(e) => handleDragOver(e, index)}
+                      onDragEnd={handleDragEnd}
+                      onDrop={(e) => handleDrop(e, index)}
+                      className={`relative bg-white rounded-xl border p-1.5 shadow-2xs transition-all cursor-grab active:cursor-grabbing select-none flex flex-col ${
+                        draggedIndex === index
+                          ? 'opacity-40 scale-95 border-neutral-400'
+                          : dragOverIndex === index
+                          ? 'border-neutral-900 ring-2 ring-amber-400 scale-[1.03] z-10'
+                          : 'border-neutral-200 hover:border-neutral-400'
+                      }`}
+                    >
+                      {/* Image & Top Overlay Badges */}
+                      <div className="relative aspect-square rounded-lg overflow-hidden bg-neutral-100 mb-1.5">
+                        <img
+                          src={photo.url}
+                          alt={photo.title}
+                          className="w-full h-full object-cover pointer-events-none"
+                        />
+
+                        {/* Prominent Order Number Badge: 1, 2, 3... */}
+                        <div
+                          className="absolute top-1.5 left-1.5 min-w-[22px] h-[22px] px-1.5 bg-neutral-900/90 backdrop-blur-xs text-white text-xs font-extrabold rounded-full flex items-center justify-center shadow-sm"
+                          title={`${index + 1}번째 전시 작품`}
+                        >
+                          {index + 1}
+                        </div>
+
+                        {/* Remove Button */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const nextIds = (formData.exhibitionPhotoIds || []).filter((id) => id !== photo.id);
+                            setFormData((prev) => ({ ...prev, exhibitionPhotoIds: nextIds }));
+                          }}
+                          title="전시에서 제외"
+                          className="absolute top-1.5 right-1.5 bg-black/55 hover:bg-rose-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] transition-colors cursor-pointer"
+                        >
+                          ✕
+                        </button>
+                      </div>
+
+                      {/* Photo Title */}
+                      <p className="text-[11px] font-medium text-neutral-800 truncate text-center px-1">
+                        {photo.title}
+                      </p>
+
+                      {/* Minimal Left / Right Step Buttons */}
+                      <div className="flex items-center justify-between mt-1 pt-1 border-t border-neutral-100">
+                        <button
+                          type="button"
+                          disabled={index === 0}
+                          onClick={() => handleMovePhoto(index, index - 1)}
+                          title="순서 앞으로"
+                          className="w-6 h-5 flex items-center justify-center rounded text-neutral-500 hover:bg-neutral-900 hover:text-white disabled:opacity-25 disabled:pointer-events-none text-[10px] cursor-pointer transition-colors"
+                        >
+                          ◀
+                        </button>
+                        <span className="text-[10px] font-semibold text-neutral-400 tabular-nums">
+                          {index + 1}
+                        </span>
+                        <button
+                          type="button"
+                          disabled={index === selectedPhotoObjects.length - 1}
+                          onClick={() => handleMovePhoto(index, index + 1)}
+                          title="순서 뒤로"
+                          className="w-6 h-5 flex items-center justify-center rounded text-neutral-500 hover:bg-neutral-900 hover:text-white disabled:opacity-25 disabled:pointer-events-none text-[10px] cursor-pointer transition-colors"
+                        >
+                          ▶
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </section>
 
           {isUploading && (
             <div className="p-3 bg-amber-50 text-amber-800 text-xs rounded-lg flex items-center gap-2">
@@ -986,75 +952,62 @@ export const ExhibitionEditModal: React.FC<ExhibitionEditModalProps> = ({
             <div className="p-3 bg-red-50 text-red-700 text-xs rounded-lg">{uploadError}</div>
           )}
 
-          {/* Footer Actions */}
-          <div className="flex justify-end items-center gap-2 pt-4 border-t border-[#c4c7c7]/30">
+          {/* Sticky-style Clean Footer Actions */}
+          <div className="flex justify-end items-center gap-2 pt-4 border-t border-neutral-200">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm border border-[#c4c7c7] text-[#444748] rounded-xl font-medium hover:bg-[#e2e2e2] transition-colors cursor-pointer"
+              className="px-4 py-2 text-xs sm:text-sm border border-neutral-300 text-neutral-700 rounded-xl font-medium hover:bg-neutral-100 transition-colors cursor-pointer"
             >
               취소
             </button>
             <button
               type="submit"
-              className="px-5 py-2 text-sm bg-[#000000] text-white rounded-xl font-semibold hover:bg-opacity-90 transition-colors shadow-md cursor-pointer flex items-center gap-1.5"
+              className="px-5 py-2 text-xs sm:text-sm bg-neutral-900 text-white rounded-xl font-semibold hover:bg-neutral-800 transition-colors shadow-sm cursor-pointer flex items-center gap-1.5"
             >
-              <span className="material-symbols-outlined text-base">save</span>
-              이 전시 저장 및 구글 시트 자동 동기화
+              <span className="material-symbols-outlined text-[16px]">check</span>
+              변경사항 저장
             </button>
           </div>
         </form>
       </div>
 
-      {/* Photo Picker Fixed Sub-modal Overlay */}
+      {/* Unified Sub-Modal for Cover / Artist Photo Selection */}
       {photoPickerTarget && (
-        <div className="fixed inset-0 z-[70] bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[80vh] flex flex-col p-6 shadow-2xl border border-[#c4c7c7]">
-            <div className="flex justify-between items-center mb-4 pb-3 border-b border-[#f0f0f0]">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-amber-600 text-xl">photo_library</span>
-                <h3 className="font-serif text-lg font-bold text-[#000000]">
-                  {photoPickerTarget === 'introImage' ? '전시 포스터 / 대표 이미지 선택' : '작가 프로필 사진 선택'}
-                </h3>
-              </div>
+        <div className="fixed inset-0 z-[70] bg-black/65 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[80vh] flex flex-col p-5 shadow-2xl border border-neutral-200">
+            <div className="flex justify-between items-center mb-3 pb-3 border-b border-neutral-200">
+              <h3 className="font-sans text-sm sm:text-base font-bold text-neutral-900">
+                {photoPickerTarget === 'introImage' ? '전시 대표 커버 이미지 선택' : '작가 프로필 사진 선택'}
+              </h3>
               <button
                 type="button"
                 onClick={() => setPhotoPickerTarget(null)}
-                className="w-8 h-8 rounded-full hover:bg-[#e2e2e2] flex items-center justify-center text-[#444748] cursor-pointer transition-colors"
+                className="w-7 h-7 rounded-full hover:bg-neutral-100 flex items-center justify-center text-neutral-500 cursor-pointer transition-colors"
               >
-                <span className="material-symbols-outlined text-lg">close</span>
+                <span className="material-symbols-outlined text-base">close</span>
               </button>
             </div>
 
-            <p className="text-xs text-[#747878] mb-4">
-              갤러리에 등록된 전체 사진 중 아래에서 적용할 이미지를 클릭하세요.
-            </p>
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 overflow-y-auto max-h-[50vh] p-1 custom-scrollbar">
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5 overflow-y-auto max-h-[55vh] p-1 custom-scrollbar">
               {photos.map((photo) => (
                 <button
                   key={photo.id}
                   type="button"
                   onClick={() => handleSelectPhotoForTarget(photo.url)}
-                  className="group relative aspect-square rounded-xl overflow-hidden border-2 border-transparent hover:border-[#000000] focus:border-[#000000] transition-all cursor-pointer shadow-xs bg-[#e2e2e2]"
+                  className="group relative aspect-square rounded-xl overflow-hidden border border-neutral-200 hover:border-neutral-900 transition-all cursor-pointer bg-neutral-100"
                 >
-                  <img src={photo.url} alt={photo.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white text-xs font-semibold p-2 text-center">
-                    <span className="material-symbols-outlined text-xl text-amber-400 mb-1">check_circle</span>
-                    <span className="line-clamp-2">{photo.title}</span>
+                  <img
+                    src={photo.url}
+                    alt={photo.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                  <div className="absolute inset-0 bg-black/45 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white text-xs font-semibold p-2 text-center">
+                    <span className="material-symbols-outlined text-lg text-white mb-0.5">check_circle</span>
+                    <span className="line-clamp-1 text-[11px]">{photo.title}</span>
                   </div>
                 </button>
               ))}
-            </div>
-
-            <div className="mt-4 pt-3 border-t border-[#f0f0f0] flex justify-end">
-              <button
-                type="button"
-                onClick={() => setPhotoPickerTarget(null)}
-                className="px-4 py-2 text-xs font-semibold border border-[#c4c7c7] text-[#444748] rounded-xl hover:bg-[#e2e2e2] cursor-pointer transition-colors"
-              >
-                닫기
-              </button>
             </div>
           </div>
         </div>
