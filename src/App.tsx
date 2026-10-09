@@ -378,10 +378,109 @@ export default function App() {
     }, 3500);
   };
 
-  // Google Sheets Auto Sync Effect
+  // Google Sheets Auto Sync & Real-time Server Sync State
   const [isSheetSyncing, setIsSheetSyncing] = useState(false);
   const [sheetSyncStatus, setSheetSyncStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const recentLikeClickRef = useRef<Record<string, number>>({});
+  const realtimeLikesRef = useRef<Record<string, number>>({});
+  const hasRealtimeServerRef = useRef<boolean>(false);
+
+  // Apply authoritative real-time likes & exhibition picks to all active React states
+  const applyRealtimeLikesAndPicks = (
+    incomingLikes: Record<string, number>,
+    incomingPicks?: string[],
+    hasIncomingPicks?: boolean,
+    respectRecentGuard = true
+  ) => {
+    const now = Date.now();
+    realtimeLikesRef.current = incomingLikes;
+
+    try {
+      localStorage.setItem('pm_photo_likes', JSON.stringify(incomingLikes));
+      if (hasIncomingPicks && Array.isArray(incomingPicks)) {
+        localStorage.setItem('pm_exhibition_picks', JSON.stringify(incomingPicks));
+      }
+    } catch {}
+
+    const picksSet = hasIncomingPicks && Array.isArray(incomingPicks) ? new Set(incomingPicks) : null;
+
+    setPhotos((prevPhotos) => {
+      let changed = false;
+      const next = prevPhotos.map((p) => {
+        if (respectRecentGuard && recentLikeClickRef.current[p.id] && now - recentLikeClickRef.current[p.id] < 600) {
+          return p;
+        }
+        const remoteCount = typeof incomingLikes[p.id] === 'number' ? incomingLikes[p.id] : 0;
+        const currentCount = typeof p.likes === 'number' ? p.likes : 0;
+        const nextPick = picksSet ? picksSet.has(p.id) : p.exhibitionPick;
+
+        if (remoteCount !== currentCount || (picksSet && nextPick !== Boolean(p.exhibitionPick))) {
+          changed = true;
+          return {
+            ...p,
+            likes: remoteCount,
+            ...(picksSet ? { exhibitionPick: nextPick } : {}),
+          };
+        }
+        return p;
+      });
+
+      if (changed) {
+        try {
+          localStorage.setItem('pm_photos', JSON.stringify(next));
+        } catch {}
+      }
+      return changed ? next : prevPhotos;
+    });
+
+    setSelectedPhoto((prevSelected) => {
+      if (!prevSelected) return prevSelected;
+      if (
+        respectRecentGuard &&
+        recentLikeClickRef.current[prevSelected.id] &&
+        now - recentLikeClickRef.current[prevSelected.id] < 600
+      ) {
+        return prevSelected;
+      }
+      const remoteCount =
+        typeof incomingLikes[prevSelected.id] === 'number' ? incomingLikes[prevSelected.id] : 0;
+      const currentCount = typeof prevSelected.likes === 'number' ? prevSelected.likes : 0;
+      const nextPick = picksSet ? picksSet.has(prevSelected.id) : prevSelected.exhibitionPick;
+
+      if (remoteCount !== currentCount || (picksSet && nextPick !== Boolean(prevSelected.exhibitionPick))) {
+        return {
+          ...prevSelected,
+          likes: remoteCount,
+          ...(picksSet ? { exhibitionPick: nextPick } : {}),
+        };
+      }
+      return prevSelected;
+    });
+
+    setActivePhotoList((prevList) => {
+      if (!prevList) return prevList;
+      let listChanged = false;
+      const nextList = prevList.map((p) => {
+        if (respectRecentGuard && recentLikeClickRef.current[p.id] && now - recentLikeClickRef.current[p.id] < 600) {
+          return p;
+        }
+        const remoteCount = typeof incomingLikes[p.id] === 'number' ? incomingLikes[p.id] : 0;
+        const currentCount = typeof p.likes === 'number' ? p.likes : 0;
+        const nextPick = picksSet ? picksSet.has(p.id) : p.exhibitionPick;
+
+        if (remoteCount !== currentCount || (picksSet && nextPick !== Boolean(p.exhibitionPick))) {
+          listChanged = true;
+          return {
+            ...p,
+            likes: remoteCount,
+            ...(picksSet ? { exhibitionPick: nextPick } : {}),
+          };
+        }
+        return p;
+      });
+      return listChanged ? nextList : prevList;
+    });
+  };
 
   // Load initial data from Google Sheets if Web App URL exists
   useEffect(() => {
@@ -477,10 +576,15 @@ export default function App() {
                   mergedPhoto.exhibitionPick = true;
                 }
 
-                // Apply likes from remote homeSettings.photoLikesJson (shared across all visitors!)
+                // Apply likes from real-time server first, then remote homeSettings.photoLikesJson
+                const serverLikes = hasRealtimeServerRef.current ? realtimeLikesRef.current[p.id] : undefined;
                 const remoteLikes = remoteLikesMap[p.id];
                 const localLikes = likesMap.get(p.id) || (p.url ? likesMap.get(p.url) : 0) || 0;
-                if (typeof remoteLikes === 'number') {
+                if (typeof serverLikes === 'number') {
+                  mergedPhoto.likes = serverLikes;
+                } else if (hasRealtimeServerRef.current) {
+                  mergedPhoto.likes = typeof remoteLikes === 'number' ? remoteLikes : 0;
+                } else if (typeof remoteLikes === 'number') {
                   mergedPhoto.likes = remoteLikes;
                 } else if (!sheetItem || sheetItem.likes === undefined || sheetItem.likes === null) {
                   mergedPhoto.likes = Math.max(mergedPhoto.likes || 0, localLikes);
@@ -550,108 +654,81 @@ export default function App() {
     };
   }, [homeSettings.googleSheetAppUrl]);
 
-  // Real-time background polling for shared Likes & Exhibition Picks from Google Sheets
+  // Real-time Server-Sent Events (SSE) + fast 2s local server polling for instant (<0.5s) shared Likes
   useEffect(() => {
     const sheetUrl = homeSettings.googleSheetAppUrl;
-    if (!sheetUrl) return;
-
     let isMounted = true;
+    let eventSource: EventSource | null = null;
 
-    const pollLatestLikes = async () => {
+    // 1. Connect to real-time SSE stream for instant <100ms push updates when anyone clicks Like
+    try {
+      eventSource = new EventSource('/api/likes/stream');
+      eventSource.onmessage = (event) => {
+        if (!isMounted || !event.data) return;
+        try {
+          const parsed = JSON.parse(event.data);
+          if (parsed && typeof parsed === 'object' && parsed.likes) {
+            hasRealtimeServerRef.current = true;
+            const likesMap = parseLikesMap(parsed.likes);
+            const picksList = parsePicksList(parsed.exhibitionPicks);
+            applyRealtimeLikesAndPicks(likesMap, picksList, Boolean(parsed.hasExhibitionPicks), true);
+          }
+        } catch {
+          // ignore malformed SSE frame
+        }
+      };
+    } catch {
+      // fallback to polling if EventSource is unavailable
+    }
+
+    // 2. Fast local server fetch (< 5ms) for immediate sync on photo change / tab focus / 2s interval
+    const fetchRealtimeServerLikes = async () => {
       try {
-        const separator = sheetUrl.includes('?') ? '&' : '?';
-        const res = await fetch(`${sheetUrl}${separator}_t=${Date.now()}`, {
-          method: 'GET',
-          redirect: 'follow',
-          cache: 'no-store',
-        });
+        const query = sheetUrl ? `?sheetUrl=${encodeURIComponent(sheetUrl)}&_t=${Date.now()}` : `?_t=${Date.now()}`;
+        const res = await fetch(`/api/likes${query}`, { cache: 'no-store' });
         if (!res.ok || !isMounted) return;
         const data = await res.json();
-        if (!isMounted || !data || typeof data !== 'object') return;
+        if (!isMounted || !data || !data.ok) return;
 
-        const remoteLikesMap = parseLikesMap(data.homeSettings?.photoLikesJson);
-        const hasRemoteLikes =
-          data.homeSettings && data.homeSettings.photoLikesJson !== undefined;
-        if (!hasRemoteLikes) return;
-
-        const now = Date.now();
-
-        setPhotos((prevPhotos) => {
-          let changed = false;
-          const next = prevPhotos.map((p) => {
-            // Skip overwriting a photo that the current visitor clicked within the last 5 seconds
-            if (recentLikeClickRef.current[p.id] && now - recentLikeClickRef.current[p.id] < 5000) {
-              return p;
-            }
-            const remoteCount = typeof remoteLikesMap[p.id] === 'number' ? remoteLikesMap[p.id] : 0;
-            const currentCount = typeof p.likes === 'number' ? p.likes : 0;
-            if (remoteCount !== currentCount) {
-              changed = true;
-              return { ...p, likes: remoteCount };
-            }
-            return p;
-          });
-
-          if (changed) {
-            try {
-              localStorage.setItem('pm_photos', JSON.stringify(next));
-              localStorage.setItem('pm_photo_likes', JSON.stringify(remoteLikesMap));
-            } catch {}
-          }
-          return changed ? next : prevPhotos;
-        });
-
-        setSelectedPhoto((prevSelected) => {
-          if (!prevSelected) return prevSelected;
-          if (
-            recentLikeClickRef.current[prevSelected.id] &&
-            now - recentLikeClickRef.current[prevSelected.id] < 5000
-          ) {
-            return prevSelected;
-          }
-          const remoteCount =
-            typeof remoteLikesMap[prevSelected.id] === 'number' ? remoteLikesMap[prevSelected.id] : 0;
-          const currentCount = typeof prevSelected.likes === 'number' ? prevSelected.likes : 0;
-          if (remoteCount !== currentCount) {
-            return { ...prevSelected, likes: remoteCount };
-          }
-          return prevSelected;
-        });
-
-        setActivePhotoList((prevList) => {
-          if (!prevList) return prevList;
-          let listChanged = false;
-          const nextList = prevList.map((p) => {
-            if (recentLikeClickRef.current[p.id] && now - recentLikeClickRef.current[p.id] < 5000) {
-              return p;
-            }
-            const remoteCount = typeof remoteLikesMap[p.id] === 'number' ? remoteLikesMap[p.id] : 0;
-            const currentCount = typeof p.likes === 'number' ? p.likes : 0;
-            if (remoteCount !== currentCount) {
-              listChanged = true;
-              return { ...p, likes: remoteCount };
-            }
-            return p;
-          });
-          return listChanged ? nextList : prevList;
-        });
+        hasRealtimeServerRef.current = true;
+        const likesMap = parseLikesMap(data.likes);
+        const picksList = parsePicksList(data.exhibitionPicks);
+        applyRealtimeLikesAndPicks(likesMap, picksList, Boolean(data.hasExhibitionPicks), true);
       } catch {
-        // silent background poll ignore
+        // Fallback to Google Sheets poll only if local server route is unreachable
+        if (!sheetUrl || hasRealtimeServerRef.current) return;
+        try {
+          const separator = sheetUrl.includes('?') ? '&' : '?';
+          const res = await fetch(`${sheetUrl}${separator}_t=${Date.now()}`, {
+            method: 'GET',
+            redirect: 'follow',
+            cache: 'no-store',
+          });
+          if (!res.ok || !isMounted) return;
+          const data = await res.json();
+          if (!isMounted || !data?.homeSettings) return;
+          const remoteLikesMap = parseLikesMap(data.homeSettings.photoLikesJson);
+          if (data.homeSettings.photoLikesJson !== undefined) {
+            applyRealtimeLikesAndPicks(remoteLikesMap, undefined, false, true);
+          }
+        } catch {
+          // ignore
+        }
       }
     };
 
-    // Poll immediately when entering photo-detail or switching photos, and every 5 seconds in background
-    if (activeView === 'photo-detail') {
-      pollLatestLikes();
-    }
-    const intervalId = setInterval(pollLatestLikes, 5000);
+    fetchRealtimeServerLikes();
+    const intervalId = setInterval(fetchRealtimeServerLikes, 2000);
     const handleFocus = () => {
-      pollLatestLikes();
+      fetchRealtimeServerLikes();
     };
     window.addEventListener('focus', handleFocus);
 
     return () => {
       isMounted = false;
+      if (eventSource) {
+        eventSource.close();
+      }
       clearInterval(intervalId);
       window.removeEventListener('focus', handleFocus);
     };
@@ -1370,9 +1447,21 @@ export default function App() {
         localStorage.setItem('pm_photos_updated_at', Date.now().toString());
         const pickIds = nextPhotos.filter((p) => p.exhibitionPick).map((p) => p.id);
         localStorage.setItem('pm_exhibition_picks', JSON.stringify(pickIds));
-      } catch {}
+        fetch('/api/picks/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            exhibitionPicks: pickIds,
+            sheetUrl: homeSettings.googleSheetAppUrl,
+            homeSettingsSnapshot: homeSettings,
+          }),
+        }).catch(() => {
+          syncMetadataToGoogleSheet(nextPhotos);
+        });
+      } catch {
+        syncMetadataToGoogleSheet(nextPhotos);
+      }
 
-      syncMetadataToGoogleSheet(nextPhotos);
       showToast(
         updatedPhoto.exhibitionPick
           ? '🚩 전시 후보 작품으로 선택(깃발 표시)되었습니다.'
@@ -1403,9 +1492,21 @@ export default function App() {
         localStorage.setItem('pm_photos', JSON.stringify(nextPhotos));
         localStorage.setItem('pm_photos_updated_at', Date.now().toString());
         localStorage.setItem('pm_exhibition_picks', JSON.stringify([]));
-      } catch {}
+        fetch('/api/picks/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            exhibitionPicks: [],
+            sheetUrl: homeSettings.googleSheetAppUrl,
+            homeSettingsSnapshot: homeSettings,
+          }),
+        }).catch(() => {
+          syncMetadataToGoogleSheet(nextPhotos);
+        });
+      } catch {
+        syncMetadataToGoogleSheet(nextPhotos);
+      }
 
-      syncMetadataToGoogleSheet(nextPhotos);
       showToast(`🚩 선택된 전시 후보(${pickedCount}장) 표시가 모두 해제되었습니다.`);
     }, '전시 후보 일괄 해제는 관리자 전용 기능입니다.');
   };
@@ -1453,7 +1554,30 @@ export default function App() {
       localStorage.setItem('pm_photo_likes', JSON.stringify(likesMap));
     } catch {}
 
-    syncMetadataToGoogleSheet(nextPhotos, targetPhoto.id, !isAlreadyLiked);
+    // Instant (<10ms) real-time server toggle + SSE broadcast + background Google Sheet backup
+    fetch('/api/likes/toggle', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        photoId: targetPhoto.id,
+        increment: !isAlreadyLiked,
+        baseCount: currentLikes,
+        sheetUrl: homeSettings.googleSheetAppUrl,
+        homeSettingsSnapshot: homeSettings,
+      }),
+    })
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error('API error'))))
+      .then((data) => {
+        if (data && data.ok && data.likes) {
+          hasRealtimeServerRef.current = true;
+          const serverLikesMap = parseLikesMap(data.likes);
+          applyRealtimeLikesAndPicks(serverLikesMap, undefined, false, false);
+        }
+      })
+      .catch(() => {
+        // Fallback to direct Google Sheets sync if backend endpoint is unavailable
+        syncMetadataToGoogleSheet(nextPhotos, targetPhoto.id, !isAlreadyLiked);
+      });
   };
 
   const handleSelectCategory = (id: string | null) => {
