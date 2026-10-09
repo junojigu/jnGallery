@@ -18,6 +18,41 @@ import { CategoriesView } from './views/CategoriesView';
 import { PhotoDetailView } from './views/PhotoDetailView';
 import { ExhibitionView } from './views/ExhibitionView';
 
+// Helper to parse photoLikesJson from Google Sheet homeSettings (handles both object and JSON string)
+function parseLikesMap(raw: any): Record<string, number> {
+  if (!raw) return {};
+  try {
+    const obj = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
+      const result: Record<string, number> = {};
+      for (const [k, v] of Object.entries(obj)) {
+        const num = Number(v);
+        if (!isNaN(num) && num >= 0) {
+          result[k] = Math.floor(num);
+        }
+      }
+      return result;
+    }
+  } catch {
+    // ignore parse error
+  }
+  return {};
+}
+
+// Helper to parse exhibitionPicksJson from Google Sheet homeSettings (handles both array and JSON string)
+function parsePicksList(raw: any): string[] {
+  if (!raw) return [];
+  try {
+    const arr = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    if (Array.isArray(arr)) {
+      return arr.map((id) => String(id).trim()).filter(Boolean);
+    }
+  } catch {
+    // ignore parse error
+  }
+  return [];
+}
+
 // Helper to ensure all photos have valid categoryId, category name, and tags array
 function normalizePhotoList(rawPhotos: any[], currentCategories: Category[]): Photo[] {
   if (!Array.isArray(rawPhotos)) return [];
@@ -346,6 +381,7 @@ export default function App() {
   // Google Sheets Auto Sync Effect
   const [isSheetSyncing, setIsSheetSyncing] = useState(false);
   const [sheetSyncStatus, setSheetSyncStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const recentLikeClickRef = useRef<Record<string, number>>({});
 
   // Load initial data from Google Sheets if Web App URL exists
   useEffect(() => {
@@ -356,13 +392,33 @@ export default function App() {
     const fetchSheetData = async () => {
       try {
         setIsSheetSyncing(true);
-        const res = await fetch(sheetUrl, { method: 'GET', redirect: 'follow' });
+        const separator = sheetUrl.includes('?') ? '&' : '?';
+        const res = await fetch(`${sheetUrl}${separator}_t=${Date.now()}`, {
+          method: 'GET',
+          redirect: 'follow',
+          cache: 'no-store',
+        });
         if (!res.ok) return;
 
         const data = await res.json();
         if (!isMounted) return;
 
         if (data && typeof data === 'object') {
+          const remoteLikesMap = parseLikesMap(data.homeSettings?.photoLikesJson);
+          const hasRemotePicksField =
+            data.homeSettings && data.homeSettings.exhibitionPicksJson !== undefined;
+          const remotePicksSet = new Set(parsePicksList(data.homeSettings?.exhibitionPicksJson));
+
+          // Save remote likes map to localStorage
+          if (Object.keys(remoteLikesMap).length > 0) {
+            try {
+              const savedLikesStr = localStorage.getItem('pm_photo_likes');
+              const localLikesObj = savedLikesStr ? JSON.parse(savedLikesStr) : {};
+              const mergedLikes = { ...localLikesObj, ...remoteLikesMap };
+              localStorage.setItem('pm_photo_likes', JSON.stringify(mergedLikes));
+            } catch {}
+          }
+
           const loadedCategories = (Array.isArray(data.categories) && data.categories.length > 0)
             ? data.categories
             : categories;
@@ -403,12 +459,7 @@ export default function App() {
                 const sheetItem = data.photos.find((sp: any) => sp.id === p.id);
                 const localItem = localPhotosMap.get(p.id) || (p.url ? localPhotosMap.get(p.url) : null);
 
-                // If local photo was edited recently in browser, preserve local tags/data
-                if (hasRecentLocalEdits && localItem) {
-                  return { ...p, ...localItem };
-                }
-
-                let mergedPhoto = { ...p };
+                let mergedPhoto: Photo = hasRecentLocalEdits && localItem ? { ...p, ...localItem } : { ...p };
 
                 // If Google Sheets explicit boolean isn't present, check if local state had it featured
                 if ((!sheetItem || sheetItem.featured === undefined || sheetItem.featured === null) &&
@@ -416,21 +467,44 @@ export default function App() {
                   mergedPhoto.featured = true;
                 }
 
-                // Preserve exhibitionPick if sheet item doesn't have explicit exhibitionPick
-                if ((!sheetItem || sheetItem.exhibitionPick === undefined || sheetItem.exhibitionPick === null) &&
-                    (exhibitionPickMap.get(p.id) || (p.url && exhibitionPickMap.get(p.url)))) {
+                // Apply exhibitionPick from remote homeSettings.exhibitionPicksJson or local fallback
+                if (hasRemotePicksField) {
+                  mergedPhoto.exhibitionPick = remotePicksSet.has(p.id);
+                } else if (
+                  (!sheetItem || sheetItem.exhibitionPick === undefined || sheetItem.exhibitionPick === null) &&
+                  (exhibitionPickMap.get(p.id) || (p.url && exhibitionPickMap.get(p.url)))
+                ) {
                   mergedPhoto.exhibitionPick = true;
                 }
 
-                // Preserve likes if sheet item doesn't have likes field yet
+                // Apply likes from remote homeSettings.photoLikesJson (shared across all visitors!)
+                const remoteLikes = remoteLikesMap[p.id];
                 const localLikes = likesMap.get(p.id) || (p.url ? likesMap.get(p.url) : 0) || 0;
-                if (!sheetItem || sheetItem.likes === undefined || sheetItem.likes === null) {
+                if (typeof remoteLikes === 'number') {
+                  mergedPhoto.likes = remoteLikes;
+                } else if (!sheetItem || sheetItem.likes === undefined || sheetItem.likes === null) {
                   mergedPhoto.likes = Math.max(mergedPhoto.likes || 0, localLikes);
                 }
 
                 return mergedPhoto;
               });
               try { localStorage.setItem('pm_photos', JSON.stringify(updated)); } catch {}
+
+              // Also keep selectedPhoto and activePhotoList in sync if already open
+              const updatedById = new Map<string, Photo>(updated.map((up) => [up.id, up]));
+              setSelectedPhoto((prevSel) => {
+                if (!prevSel) return prevSel;
+                const match = updatedById.get(prevSel.id);
+                return match ? { ...prevSel, likes: match.likes, featured: match.featured, exhibitionPick: match.exhibitionPick } : prevSel;
+              });
+              setActivePhotoList((prevList) => {
+                if (!prevList) return prevList;
+                return prevList.map((item) => {
+                  const match = updatedById.get(item.id);
+                  return match ? { ...item, likes: match.likes, featured: match.featured, exhibitionPick: match.exhibitionPick } : item;
+                });
+              });
+
               return updated;
             });
           }
@@ -476,6 +550,113 @@ export default function App() {
     };
   }, [homeSettings.googleSheetAppUrl]);
 
+  // Real-time background polling for shared Likes & Exhibition Picks from Google Sheets
+  useEffect(() => {
+    const sheetUrl = homeSettings.googleSheetAppUrl;
+    if (!sheetUrl) return;
+
+    let isMounted = true;
+
+    const pollLatestLikes = async () => {
+      try {
+        const separator = sheetUrl.includes('?') ? '&' : '?';
+        const res = await fetch(`${sheetUrl}${separator}_t=${Date.now()}`, {
+          method: 'GET',
+          redirect: 'follow',
+          cache: 'no-store',
+        });
+        if (!res.ok || !isMounted) return;
+        const data = await res.json();
+        if (!isMounted || !data || typeof data !== 'object') return;
+
+        const remoteLikesMap = parseLikesMap(data.homeSettings?.photoLikesJson);
+        const hasRemoteLikes =
+          data.homeSettings && data.homeSettings.photoLikesJson !== undefined;
+        if (!hasRemoteLikes) return;
+
+        const now = Date.now();
+
+        setPhotos((prevPhotos) => {
+          let changed = false;
+          const next = prevPhotos.map((p) => {
+            // Skip overwriting a photo that the current visitor clicked within the last 5 seconds
+            if (recentLikeClickRef.current[p.id] && now - recentLikeClickRef.current[p.id] < 5000) {
+              return p;
+            }
+            const remoteCount = typeof remoteLikesMap[p.id] === 'number' ? remoteLikesMap[p.id] : 0;
+            const currentCount = typeof p.likes === 'number' ? p.likes : 0;
+            if (remoteCount !== currentCount) {
+              changed = true;
+              return { ...p, likes: remoteCount };
+            }
+            return p;
+          });
+
+          if (changed) {
+            try {
+              localStorage.setItem('pm_photos', JSON.stringify(next));
+              localStorage.setItem('pm_photo_likes', JSON.stringify(remoteLikesMap));
+            } catch {}
+          }
+          return changed ? next : prevPhotos;
+        });
+
+        setSelectedPhoto((prevSelected) => {
+          if (!prevSelected) return prevSelected;
+          if (
+            recentLikeClickRef.current[prevSelected.id] &&
+            now - recentLikeClickRef.current[prevSelected.id] < 5000
+          ) {
+            return prevSelected;
+          }
+          const remoteCount =
+            typeof remoteLikesMap[prevSelected.id] === 'number' ? remoteLikesMap[prevSelected.id] : 0;
+          const currentCount = typeof prevSelected.likes === 'number' ? prevSelected.likes : 0;
+          if (remoteCount !== currentCount) {
+            return { ...prevSelected, likes: remoteCount };
+          }
+          return prevSelected;
+        });
+
+        setActivePhotoList((prevList) => {
+          if (!prevList) return prevList;
+          let listChanged = false;
+          const nextList = prevList.map((p) => {
+            if (recentLikeClickRef.current[p.id] && now - recentLikeClickRef.current[p.id] < 5000) {
+              return p;
+            }
+            const remoteCount = typeof remoteLikesMap[p.id] === 'number' ? remoteLikesMap[p.id] : 0;
+            const currentCount = typeof p.likes === 'number' ? p.likes : 0;
+            if (remoteCount !== currentCount) {
+              listChanged = true;
+              return { ...p, likes: remoteCount };
+            }
+            return p;
+          });
+          return listChanged ? nextList : prevList;
+        });
+      } catch {
+        // silent background poll ignore
+      }
+    };
+
+    // Poll immediately when entering photo-detail or switching photos, and every 5 seconds in background
+    if (activeView === 'photo-detail') {
+      pollLatestLikes();
+    }
+    const intervalId = setInterval(pollLatestLikes, 5000);
+    const handleFocus = () => {
+      pollLatestLikes();
+    };
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      isMounted = false;
+      clearInterval(intervalId);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [homeSettings.googleSheetAppUrl, activeView, selectedPhoto?.id]);
+
   // Sync state to Google Sheets on changes
   const syncToGoogleSheet = async (payloadOverride?: any) => {
     const sheetUrl = homeSettings.googleSheetAppUrl;
@@ -497,16 +678,35 @@ export default function App() {
       const targetActiveExId = payloadOverride?.activeExhibitionId || activeExhibitionId;
       const activeExInfo = targetExhibitions.find((e: Exhibition) => e.id === targetActiveExId) || targetExhibitions[0];
 
+      // Build current likesMap and exhibitionPicks list so they are always stored in HomeSettings sheet
+      const currentLikesMap: Record<string, number> = {};
+      const currentPicksList: string[] = [];
+      targetPhotos.forEach((p: Photo) => {
+        if (typeof p.likes === 'number' && p.likes > 0) {
+          currentLikesMap[p.id] = p.likes;
+        }
+        if (p.exhibitionPick) {
+          currentPicksList.push(p.id);
+        }
+      });
+
+      const baseHomeSettings = payloadOverride?.homeSettings || homeSettings;
+      const enrichedHomeSettings: HomeSettings = {
+        ...baseHomeSettings,
+        photoLikesJson: JSON.stringify(currentLikesMap),
+        exhibitionPicksJson: JSON.stringify(currentPicksList),
+      };
+
       const payload = {
         action: 'syncAll',
         categories: targetCategories,
         tags: payloadOverride?.tags || tags,
-        homeSettings: payloadOverride?.homeSettings || homeSettings,
         exhibitions: targetExhibitions,
         activeExhibitionId: targetActiveExId,
         exhibitionInfo: payloadOverride?.exhibitionInfo || activeExInfo,
         updatedAt: new Date().toISOString(),
         ...payloadOverride,
+        homeSettings: enrichedHomeSettings,
         photos: photosForSync,
       };
 
@@ -696,13 +896,18 @@ export default function App() {
 
   const handleSaveHomeSettings = (newSettings: HomeSettings) => {
     requireAdmin(() => {
-      setHomeSettings(newSettings);
+      const mergedSettings: HomeSettings = {
+        ...newSettings,
+        photoLikesJson: homeSettings.photoLikesJson,
+        exhibitionPicksJson: homeSettings.exhibitionPicksJson,
+      };
+      setHomeSettings(mergedSettings);
       try {
-        localStorage.setItem('pm_home_settings', JSON.stringify(newSettings));
+        localStorage.setItem('pm_home_settings', JSON.stringify(mergedSettings));
       } catch {}
       syncToGoogleSheet({
         action: 'saveHomeSettings',
-        homeSettings: newSettings,
+        homeSettings: mergedSettings,
         photos,
         categories,
         tags,
@@ -1018,6 +1223,129 @@ export default function App() {
     }, '추천작 관리를 위해 관리자 로그인이 필요합니다.');
   };
 
+  // Lightweight helper to sync only HomeSettings (used for fast ~2KB sync of Likes & Exhibition Picks)
+  const syncMetadataToGoogleSheet = async (updatedPhotosList: Photo[], targetLikePhotoId?: string, isIncrement?: boolean) => {
+    const sheetUrl = homeSettings.googleSheetAppUrl;
+    if (!sheetUrl) return;
+
+    try {
+      setIsSheetSyncing(true);
+
+      // 1. Fetch latest remote homeSettings first so we never overwrite another visitor's concurrent like
+      let remoteLikesMap: Record<string, number> = {};
+      let remoteHomeSettings: Partial<HomeSettings> = {};
+      try {
+        const separator = sheetUrl.includes('?') ? '&' : '?';
+        const res = await fetch(`${sheetUrl}${separator}_t=${Date.now()}`, {
+          method: 'GET',
+          redirect: 'follow',
+          cache: 'no-store',
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.homeSettings && typeof data.homeSettings === 'object') {
+            remoteHomeSettings = data.homeSettings;
+            remoteLikesMap = parseLikesMap(data.homeSettings.photoLikesJson);
+          }
+        }
+      } catch {
+        // fallback to local state if GET fails
+      }
+
+      // 2. Build merged likes map and exhibition picks list
+      const now = Date.now();
+      const mergedLikesMap: Record<string, number> = { ...remoteLikesMap };
+      const picksList: string[] = [];
+
+      updatedPhotosList.forEach((p) => {
+        if (p.exhibitionPick) {
+          picksList.push(p.id);
+        }
+        const localCount = typeof p.likes === 'number' ? p.likes : 0;
+        if (p.id === targetLikePhotoId && isIncrement !== undefined) {
+          // If we have a remote count from another visitor, apply the delta accurately
+          if (typeof remoteLikesMap[p.id] === 'number') {
+            const computed = isIncrement
+              ? Math.max(localCount, remoteLikesMap[p.id] + 1)
+              : Math.max(0, remoteLikesMap[p.id] - 1);
+            mergedLikesMap[p.id] = computed;
+          } else {
+            mergedLikesMap[p.id] = localCount;
+          }
+        } else if (recentLikeClickRef.current[p.id] && now - recentLikeClickRef.current[p.id] < 10000) {
+          mergedLikesMap[p.id] = localCount;
+        } else if (mergedLikesMap[p.id] === undefined && localCount > 0) {
+          mergedLikesMap[p.id] = localCount;
+        }
+      });
+
+      // Clean up zero entries to keep JSON compact
+      Object.keys(mergedLikesMap).forEach((k) => {
+        if (!mergedLikesMap[k] || mergedLikesMap[k] <= 0) {
+          delete mergedLikesMap[k];
+        }
+      });
+
+      // Update local state with any merged counts from other visitors
+      setPhotos((prev) =>
+        prev.map((p) => {
+          const syncedLikes = mergedLikesMap[p.id] || 0;
+          return (p.likes || 0) !== syncedLikes ? { ...p, likes: syncedLikes } : p;
+        })
+      );
+      setSelectedPhoto((prev) => {
+        if (!prev) return prev;
+        const syncedLikes = mergedLikesMap[prev.id] || 0;
+        return (prev.likes || 0) !== syncedLikes ? { ...prev, likes: syncedLikes } : prev;
+      });
+      setActivePhotoList((prev) =>
+        prev
+          ? prev.map((p) => {
+              const syncedLikes = mergedLikesMap[p.id] || 0;
+              return (p.likes || 0) !== syncedLikes ? { ...p, likes: syncedLikes } : p;
+            })
+          : null
+      );
+
+      try {
+        localStorage.setItem('pm_photo_likes', JSON.stringify(mergedLikesMap));
+      } catch {}
+
+      const nextHomeSettings: HomeSettings = {
+        ...homeSettings,
+        ...remoteHomeSettings,
+        photoLikesJson: JSON.stringify(mergedLikesMap),
+        exhibitionPicksJson: JSON.stringify(picksList),
+      };
+
+      setHomeSettings(nextHomeSettings);
+      try {
+        localStorage.setItem('pm_home_settings', JSON.stringify(nextHomeSettings));
+      } catch {}
+
+      // 3. POST lightweight saveHomeSettings payload (~2KB instead of 600KB)
+      await fetch(sheetUrl, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: {
+          'Content-Type': 'text/plain;charset=utf-8',
+        },
+        body: JSON.stringify({
+          action: 'saveHomeSettings',
+          homeSettings: nextHomeSettings,
+          updatedAt: new Date().toISOString(),
+        }),
+      });
+
+      setSheetSyncStatus('success');
+    } catch (err) {
+      console.error('Google Sheets metadata sync error:', err);
+      setSheetSyncStatus('error');
+    } finally {
+      setIsSheetSyncing(false);
+    }
+  };
+
   // Admin Exhibition Pick (Flag) Toggle Handler
   const handleToggleExhibitionPick = (photoToToggle: Photo) => {
     requireAdmin(() => {
@@ -1044,7 +1372,7 @@ export default function App() {
         localStorage.setItem('pm_exhibition_picks', JSON.stringify(pickIds));
       } catch {}
 
-      syncToGoogleSheet({ photos: nextPhotos });
+      syncMetadataToGoogleSheet(nextPhotos);
       showToast(
         updatedPhoto.exhibitionPick
           ? '🚩 전시 후보 작품으로 선택(깃발 표시)되었습니다.'
@@ -1077,7 +1405,7 @@ export default function App() {
         localStorage.setItem('pm_exhibition_picks', JSON.stringify([]));
       } catch {}
 
-      syncToGoogleSheet({ photos: nextPhotos });
+      syncMetadataToGoogleSheet(nextPhotos);
       showToast(`🚩 선택된 전시 후보(${pickedCount}장) 표시가 모두 해제되었습니다.`);
     }, '전시 후보 일괄 해제는 관리자 전용 기능입니다.');
   };
@@ -1087,6 +1415,8 @@ export default function App() {
     const isAlreadyLiked = likedPhotoIds.includes(targetPhoto.id);
     const currentLikes = typeof targetPhoto.likes === 'number' ? targetPhoto.likes : 0;
     const nextLikes = isAlreadyLiked ? Math.max(0, currentLikes - 1) : currentLikes + 1;
+
+    recentLikeClickRef.current[targetPhoto.id] = Date.now();
 
     const nextLikedIds = isAlreadyLiked
       ? likedPhotoIds.filter((id) => id !== targetPhoto.id)
@@ -1123,7 +1453,7 @@ export default function App() {
       localStorage.setItem('pm_photo_likes', JSON.stringify(likesMap));
     } catch {}
 
-    syncToGoogleSheet({ photos: nextPhotos });
+    syncMetadataToGoogleSheet(nextPhotos, targetPhoto.id, !isAlreadyLiked);
   };
 
   const handleSelectCategory = (id: string | null) => {

@@ -69,4 +69,6 @@ export interface HomeSettings {
   cloudinaryCloudName?: string;
   cloudinaryUploadPreset?: string;
   googleSheetAppUrl?: string;
+  photoLikesJson?: string | Record<string, number>;
+  exhibitionPicksJson?: string | string[];
 }
